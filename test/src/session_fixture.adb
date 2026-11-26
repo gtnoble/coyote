@@ -210,12 +210,25 @@ package body Session_Fixture is
       UUID     : String;
       Tool_Id  : String;
       Result   : String;
-      Is_Error : Boolean := False)
+      Is_Error : Boolean := False;
+      Media_Type : String := "")
    is
       Msg : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
       Content : GNATCOLL.JSON.JSON_Array          := GNATCOLL.JSON.Empty_Array;
    begin
-      GNATCOLL.JSON.Append (Content, Text_Block (Result));
+      if Media_Type = "" then
+         GNATCOLL.JSON.Append (Content, Text_Block (Result));
+      else
+         declare
+            Image : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+         begin
+            Image.Set_Field ("type", "image");
+            Image.Set_Field ("media_type", Media_Type);
+            Image.Set_Field ("data", Result);
+            GNATCOLL.JSON.Append (Content, Image);
+         end;
+      end if;
       Msg.Set_Field ("role", "toolResult");
       Msg.Set_Field ("toolCallId", Tool_Id);
       Msg.Set_Field ("toolName", "");

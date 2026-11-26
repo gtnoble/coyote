@@ -40,6 +40,27 @@ Use a dedicated local Unix-domain socket in a private user runtime directory, no
 
 The v1 request has one `add` operation, a request ID and an ordered file count. Each file has a bounded UTF-8 label, declared byte length and binary bytes. The header has a version and capability; length fields are unsigned, checked before allocation and encoded in network byte order. The result is a bounded response with status and ordered IDs or an error identifying the failing file. Authenticate before accepting image data; reject invalid headers, counts, truncated streams and unexpected trailing data. Use finite read/write deadlines, bounded concurrent requests, per-file and aggregate byte reservations, and one batch commit on GTK adoption after rechecking the binding. For a persisted session, acknowledge success only after its batch manifest is committed. Validation failure leaves no published roots. Cache terminal dispositions by binding and request ID for the service retry window, so retrying a lost acknowledgement with the same ID does not add duplicates; if no disposition can be confirmed, report the outcome as unknown rather than silently retrying as a new command. Protocol widths, timeouts and retry-window values are implementation constants to confirm before protocol freeze.
 
+### Importing a captured tool image (PCR-140)
+
+The native Tool Call Details snapshot offers **Add to Canvas** for a
+completed successful PNG or JPEG result with a payload. It passes the
+captured bytes (as base64) and declared type, not the thumbnail, tool
+arguments, or a filename. Live and replayed tool-call cards carry the
+Canvas binding generation; the frontend checks it and the owning window
+at activation. Session reset or replacement invalidates old actions and
+pending decode requests.
+
+Canvas opens on activation and can hold one import while lazy session
+recovery completes. The bounded worker checks canonical base64, the
+8 MiB encoded raster limit, MIME/signature agreement, and ordinary flat
+geometry/decoded budgets. This entry point has no tiled fallback and does
+not fetch files or URLs. The new labeled Original is appended without
+altering selection, the working draft, or staged attachments. A durable
+Canvas uses its existing candidate-workspace publication path; a
+memory-only Canvas keeps the pixels in memory. Errors leave existing
+work intact; a post-publication durability uncertainty is reported
+separately from a rejected commit.
+
 ## 4. Canvas window and interactions
 
 ### 4.1 Window, selection and edit routing

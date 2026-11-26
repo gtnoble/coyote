@@ -3,6 +3,17 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-140 — Add tool-result images to Canvas
+
+- **Date reported:** 2026-11-22
+- **Category:** Enhancement, Code, Test, Help
+- **Priority:** 4-Minor (file import remains available).
+- **Authorization:** User approved the Tool Call Details action.
+- **Change:** Import captured PNG/JPEG data as a native-size Original from
+  live or replayed calls. Keep the current draft, selection, and staged
+  attachments intact. Bind requests to the active Canvas session and use
+  the bounded raster worker and existing durable publication path.
+
 ## PCR-139 — Hold-to-pan from the tablet pad
 
 - **Date reported:** 2026-11-22

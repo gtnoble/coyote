@@ -8,6 +8,7 @@ with Glib.Main;
 with Coyote_Canvas.Composite;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions;
+with Coyote_Canvas.Rasters;
 with Cairo;
 with Gdk.Event;
 with Gdk.Seat;
@@ -42,6 +43,14 @@ package Coyote_GUI.Canvas is
    procedure Show
      (S      : aliased in out Instance;
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class);
+   --  Add captured PNG/JPEG data as an Original in the current binding.
+   --  Called by an explicit UI action; opens Canvas and reports errors there.
+   procedure Import_Tool_Image
+     (S : aliased in out Instance;
+      Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Data : Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type : String);
+
    type Attach_Handler is access function
      (Images : LLM.Types.User_Images.Vector) return Boolean;
    procedure Set_Attach_Handler (S : in out Instance; Handler : Attach_Handler);
@@ -68,7 +77,8 @@ private
      array (Positive range 1 .. Coyote_Canvas.Revisions.MAX_REVISIONS)
        of Gtk.Tree_Model.Gtk_Tree_Iter;
 
-   type Image_Origin is (Blank, Clipboard_Image, File_Image, Agent_Image);
+   type Image_Origin is
+     (Blank, Clipboard_Image, File_Image, Agent_Image, Tool_Image);
    type Image_Asset is record
       Pixels : Gdk.Pixbuf.Gdk_Pixbuf := null;
       Origin : Image_Origin := Blank;
@@ -131,7 +141,10 @@ private
       Publication : Coyote_Canvas.Import_Service.Binding_Access;
       Import_Timer : Glib.Main.G_Source_Id := 0;
       Import_Count : Natural := 0;
-      Local_Commit : Boolean := False;
+      Local_Commit : Image_Origin := Blank;
+      Pending_Tool_Data : Ada.Strings.Unbounded.Unbounded_String;
+      Pending_Tool_Format : Coyote_Canvas.Rasters.Format :=
+        Coyote_Canvas.Rasters.Unknown;
       Attach_Item : Gtk.Menu_Item.Gtk_Menu_Item;
       Attach_Button : Gtk.Button.Gtk_Button := null;
       Attach_From_Drawing : Boolean := False;

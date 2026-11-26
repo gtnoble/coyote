@@ -327,6 +327,7 @@ package body Coyote_GUI.Conversation_Stack is
    type Detail_Context is record
       Stack   : Instance_Access;
       Tool_Id : Unbounded_String;
+      Binding : Natural;
    end record;
 
    package Detail_Callback is new Gtk.Handlers.User_Callback
@@ -918,7 +919,8 @@ package body Coyote_GUI.Conversation_Stack is
       if Data.Stack /= null and then Data.Stack.Main_Window /= null then
          Coyote_GUI.Tool_Detail_Window.Show
            (Tool_Detail (Data.Stack.all, To_String (Data.Tool_Id)),
-            Data.Stack.Main_Window.all'Access);
+            Data.Stack.Main_Window.all'Access,
+            Data.Stack.Tool_Image_Handler, Data.Binding);
       end if;
    end On_Detail_Clicked;
 
@@ -963,6 +965,14 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       C.Fork_Callback := Handler;
    end Set_Fork_Handler;
+
+   procedure Set_Tool_Image_Handler
+     (C : in out Instance; Handler : Tool_Detail_Window.Image_Handler;
+      Binding : Natural) is
+   begin
+      C.Tool_Image_Handler := Handler;
+      C.Tool_Image_Binding := Binding;
+   end Set_Tool_Image_Handler;
 
    procedure Set_Tool_Action_Handler
      (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler)
@@ -1392,6 +1402,7 @@ package body Coyote_GUI.Conversation_Stack is
       Gtk.Button.Gtk_New_From_Icon_Name
         (Details, "document-properties", Gtk.Enums.Icon_Size_Button);
       Details.Set_Label ("View Details");
+      Details.Set_Name ("coyote-tool-details");
       Details.Set_Always_Show_Image (True);
       Details.Set_Can_Focus (True);
       Details.Set_Sensitive (True);
@@ -1402,7 +1413,8 @@ package body Coyote_GUI.Conversation_Stack is
          Gtk.Button.Signal_Clicked,
          On_Detail_Clicked'Access,
         (Stack   => C'Unchecked_Access,
-         Tool_Id => To_Unbounded_String (Tool_Id)));
+         Tool_Id => To_Unbounded_String (Tool_Id),
+         Binding => C.Tool_Image_Binding));
       Gtk.Box.Gtk_New_Hbox (Action_Box, Homogeneous => False, Spacing => 4);
       Box.Pack_Start
         (Action_Box, Expand => False, Fill => False, Padding => 0);

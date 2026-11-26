@@ -38,13 +38,24 @@ package Coyote_GUI.Canvas_Import_Jobs is
       Callback :        Completion;
       Accepted :    out Boolean);
 
+   MAX_BASE64_BYTES : constant :=
+     4 * ((Coyote_Canvas.Rasters.MAX_ENCODED_BYTES + 2) / 3);
+
+   --  Validate canonical base64 and decode a PNG/JPEG on the worker.
+   procedure Submit_Base64
+     (Data     : Ada.Strings.Unbounded.Unbounded_String;
+      Expected : Coyote_Canvas.Rasters.Format;
+      Token    : System.Address;
+      Callback : Completion;
+      Accepted : out Boolean);
+
    procedure Submit_Batch
      (Data     : Coyote_Canvas.Import_Service.Text_List;
       Token    : System.Address;
       Callback : Completion;
       Accepted : out Boolean);
 
-   procedure Cancel_Files (Token : System.Address);
+   procedure Cancel_Input (Token : System.Address);
 
    procedure Submit_Files
      (Paths    :        Path_List;

@@ -8,10 +8,13 @@ with AUnit.Test_Caller;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Real_Time;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
+with Coyote_App.History;
+with Session_Fixture;
 with Coyote_Canvas.Store;
 with Coyote_Canvas.Store.Workspaces;
 with Coyote_Canvas.Revisions;
@@ -2107,6 +2110,267 @@ package body Coyote_App_Frontend_GUI_Tests is
       end loop Poll;
    end Finish_Canvas_Jobs;
 
+   procedure Test_Canvas_Tool_Image (T : in out Test) is
+      use Ada.Real_Time;
+      use Ada.Strings.Unbounded;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use type Coyote_Canvas.Store.Result;
+      use type Coyote_Canvas.Document.Rectangle;
+      use type System.Address;
+      package Disk renames Coyote_Canvas.Store.Workspaces;
+      package Rev renames Coyote_Canvas.Revisions;
+
+      --  384 x 13: red on the left, blue on the right. Wider than the
+      --  conversation thumbnail, so that preview cannot pass this test.
+      PNG : constant String :=
+        "iVBORw0KGgoAAAANSUhEUgAAAYAAAAANCAYAAACgnrkNAAAAbUlEQVR4nO3O"
+        & "sQ3AQBAEoeu/6XcZs5IJyLl39+CvBgrQ6QfQGShApx9AZ6AAnX4AnYEC"
+        & "dPoBdAYK0OkH0BkoQKcfQGegAJ1+AJ2BAnT6AXQGCtDpB9AZKECnH0Bn"
+        & "oACdfgCdgQJ0+gF0BgqQ+QA8zNs794TAkQAAAABJRU5ErkJggg==";
+      JPEG : constant String :=
+        "/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgIC"
+        & "AgUEBAMEBgUGBgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/"
+        & "2wBDAQICAgICAgUDAwUKBwYHCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoK"
+        & "CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wAARCAAHAAsDAREAAhEBAxEB/8QA"
+        & "FQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QA"
+        & "FgEBAQEAAAAAAAAAAAAAAAAAAAgJ/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/a"
+        & "AAwDAQACEQMRAD8Ai9KbfwB//9k=";
+      Slug : constant String := "--tmp--";
+      Had_Home : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+      A, Session_Path, Session_Dir : Unbounded_String;
+      B : constant String := "55be8400-e29b-41d4-a716-446655449011";
+      Pattern : String := "/tmp/coyote-canvas-tool-XXXXXX" & ASCII.NUL;
+      Root : Unbounded_String;
+      F : Coyote_App.Frontend.GUI.Instance;
+      Canvas, Inspector : Gtk.Window.Gtk_Window;
+      Tree : Gtk.Tree_View.Gtk_Tree_View;
+      Model : Gtk_Tree_Model;
+      Add_Button : Gtk.Widget.Gtk_Widget;
+      Saved : Rev.Workspace;
+      Assets : Disk.Raster_Set;
+      Status : Coyote_Canvas.Store.Result;
+
+      function Make_Temp_Directory (P : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+        (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name));
+
+      procedure Show_Details is
+         Details : Gtk.Widget.Gtk_Widget;
+      begin
+         Drain_Events;
+         Details := Find_Canvas_Widget
+           (Gtk.Widget.Gtk_Widget (Main_Window (F)), "coyote-tool-details");
+         Assert (Details /= null, "Tool card provides View Details");
+         Gtk.Button.Gtk_Button (Details).Clicked;
+         Inspector := Canvas_Toplevel ("tool-detail-window");
+         Assert (Inspector /= null, "Tool Call Details opens");
+         Add_Button := Find_Canvas_Widget
+           (Gtk.Widget.Gtk_Widget (Inspector), "tool-detail-add-to-canvas");
+      end Show_Details;
+
+      procedure Open_Inspector
+        (Session, Payload, MIME : String;
+         Result : Coyote_App.Frontend.Tool_End_Status :=
+           Coyote_App.Frontend.Success)
+      is
+      begin
+         if Inspector /= null then
+            Inspector.Destroy;
+         end if;
+         F.Clear_Conversation;
+         F.Begin_Request ("tool image fixture");
+         F.Begin_Tool ("shell", "{}", Session, "tool-image-test");
+         F.End_Tool ("tool-image-test", Result, Payload, MIME);
+         Show_Details;
+      end Open_Inspector;
+
+      procedure Restore_Home is
+      begin
+         if Had_Home then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         else
+            Ada.Environment_Variables.Clear ("HOME");
+         end if;
+      end Restore_Home;
+
+      procedure Click_Add is
+      begin
+         Assert (Add_Button /= null and then Add_Button.Get_Sensitive,
+                 "Completed typed image provides Add to Canvas");
+         Gtk.Button.Gtk_Button (Add_Button).Clicked;
+      end Click_Add;
+
+      procedure Wait_Roots (Count : Glib.Gint) is
+         Deadline : constant Time := Clock + Seconds (5);
+      begin
+         Await_Roots : loop
+            Drain_Events;
+            exit Await_Roots when N_Children (Model) = Count;
+            Assert (Clock < Deadline, "Canvas root count did not reach" &
+                    Count'Image & ": " & N_Children (Model)'Image);
+            delay 0.01;
+         end loop Await_Roots;
+      end Wait_Roots;
+
+      procedure Read_Tree is
+      begin
+         Canvas := Canvas_Window (F);
+         Assert (Canvas /= null and then Canvas.Get_Visible,
+                 "Add to Canvas opens the workspace");
+         Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
+         Model := Tree.Get_Model;
+      end Read_Tree;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Assert (Make_Temp_Directory (Pattern'Address) /= System.Null_Address,
+              "Create isolated session directory");
+      Root := To_Unbounded_String (Pattern (1 .. Pattern'Last - 1));
+      A := To_Unbounded_String
+        (Session_Fixture.Create_Native_Session (To_String (Root), Slug, ""));
+      Session_Path := To_Unbounded_String (Session_Fixture.Session_File_Path
+        (To_String (Root), Slug, To_String (A)));
+      Session_Dir := To_Unbounded_String
+        (Ada.Directories.Containing_Directory (To_String (Session_Path)));
+      Session_Fixture.Append_User_Message
+        (To_String (Root), Slug, To_String (A), "Show an image");
+      Session_Fixture.Append_Assistant_Tool_Call
+        (To_String (Root), Slug, To_String (A), "saved-image", "shell", "{}");
+      Session_Fixture.Append_Tool_Result
+        (To_String (Root), Slug, To_String (A), "saved-image", PNG,
+         Media_Type => "image/png");
+      F.Create ("Canvas tool result test", Pop_Under => True,
+                Canvas_Waits_For_Session => True);
+      declare
+         State : Coyote_App.App_State;
+      begin
+         Ada.Environment_Variables.Set ("HOME", To_String (Root));
+         Coyote_App.History.Render_Session_History (To_String (A), F, State);
+         Restore_Home;
+      end;
+      F.Set_Session_Identity
+        (To_String (A), To_String (Session_Dir), To_String (Session_Path));
+      Show_Details;
+      Assert (Canvas_Window (F) = null, "Inspecting alone does not open Canvas");
+      Click_Add;
+      Read_Tree;
+      Assert (N_Children (Model) = 0, "Lazy load and import do not block GTK");
+      Wait_Roots (1);
+      Assert (Tree.Get_Selection.Count_Selected_Rows = 0
+              and then Attachment_Count (F) = 0,
+              "Import neither selects nor attaches the result");
+      Disk.Load (To_String (Session_Dir), To_String (A), Saved, Assets, Status);
+      Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Count (Saved) = 1
+              and then Rev.Extent (Saved, 1) = (0, 0, 384, 13)
+              and then Rev.Original_Label (Saved, 1) = "Tool Image 1",
+              "Published Original has the captured native dimensions and label");
+      Assert (Length (Assets (1)) = 384 * 13 * 4
+              and then Slice (Assets (1), 1, 4) =
+                Character'Val (255) & ASCII.NUL & ASCII.NUL & Character'Val (255)
+              and then Slice (Assets (1), 769, 772) =
+                ASCII.NUL & ASCII.NUL & Character'Val (255) & Character'Val (255),
+              "Durable asset retains both source colors");
+
+      declare
+         Temp : constant String := To_String (Session_Dir) & "/"
+           & To_String (A) & ".canvas/.canvas.tmp";
+         Deadline : constant Time := Clock + Seconds (5);
+         use Ada.Strings.Fixed;
+      begin
+         Ada.Directories.Create_Directory (Temp);
+         Click_Add;
+         Await_Failure : loop
+            Drain_Events;
+            exit Await_Failure when Index
+              (Gtk.Label.Gtk_Label
+                 (Control ("coyote-canvas-status")).Get_Text,
+               "Canvas import could not be saved:") = 1;
+            Assert (Clock < Deadline, "Tool import did not report save failure");
+            delay 0.01;
+         end loop Await_Failure;
+         Ada.Directories.Delete_Directory (Temp);
+         Disk.Load
+           (To_String (Session_Dir), To_String (A), Saved, Assets, Status);
+         Assert (N_Children (Model) = 1 and then Rev.Count (Saved) = 1
+                 and then Status = Coyote_Canvas.Store.Ok,
+                 "Failed publication adds no Original on screen or disk");
+      end;
+
+      Reset_Agents_From_Task (F);
+      F.Set_Session_Identity (B);
+      Drain_Events;
+      Click_Add;
+      declare
+         Feedback : constant Gtk.Widget.Gtk_Widget := Find_Canvas_Widget
+           (Gtk.Widget.Gtk_Widget (Inspector), "tool-detail-canvas-feedback");
+      begin
+         Assert (Feedback /= null and then Feedback.Get_Visible
+                 and then not Canvas.Get_Visible,
+                 "Old inspector cannot open or modify the replacement Canvas");
+      end;
+      Open_Inspector (B, "/tmp/no-such-image.png", "");
+      Assert (Add_Button = null, "A path in tool text is not an image result");
+      Open_Inspector (B, PNG, "image/webp");
+      Assert (Add_Button = null, "Unsupported image formats do not offer Add");
+      Open_Inspector (B, PNG, "image/png", Coyote_App.Frontend.Error);
+      Assert (Add_Button = null, "Failed calls do not offer Add");
+      Open_Inspector (B, PNG, "image/jpeg");
+      Click_Add;
+      Read_Tree;
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 0 and then
+              Canvas_Toplevel ("coyote-canvas-import-error") /= null,
+              "MIME/signature mismatch reports an error without creating a root");
+      Gtk.Dialog.Gtk_Dialog
+        (Canvas_Toplevel ("coyote-canvas-import-error")).Response
+          (Gtk.Dialog.Gtk_Response_Close);
+      Open_Inspector (B, PNG (1 .. PNG'Last - 3) & "h==", "image/png");
+      Click_Add;
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 0 and then
+              Canvas_Toplevel ("coyote-canvas-import-error") /= null,
+              "Noncanonical base64 padding bits are rejected");
+      Gtk.Dialog.Gtk_Dialog
+        (Canvas_Toplevel ("coyote-canvas-import-error")).Response
+          (Gtk.Dialog.Gtk_Response_Close);
+
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-new")).Activate;
+      Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
+      Open_Inspector (B, JPEG, "image/jpeg");
+      Click_Add;
+      Wait_Roots (2);
+      Assert (Tree.Get_Selection.Iter_Is_Selected (Get_Iter_First (Model))
+              and then Attachment_Count (F) = 0,
+              "Memory-only import preserves the existing selection");
+      Tree.Get_Selection.Unselect_All;
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "1"));
+      declare
+         W, H : Glib.Gint;
+      begin
+         Control ("coyote-canvas-drawing-area").Get_Size_Request (W, H);
+         Assert (W = 11 and then H = 7, "JPEG retains its original geometry");
+      end;
+      F.Request_Shutdown;
+      Main_Window (F).Destroy;
+      Ada.Directories.Delete_Tree (To_String (Root));
+   exception
+      when others =>
+         Restore_Home;
+         if Main_Window (F) /= null then
+            F.Request_Shutdown;
+            Main_Window (F).Destroy;
+         end if;
+         if Length (Root) /= 0 then
+            Ada.Directories.Delete_Tree (To_String (Root));
+         end if;
+         raise;
+   end Test_Canvas_Tool_Image;
+
    procedure Test_Canvas_Clipboard_Import (T : in out Test) is
       use Coyote_App.Frontend.GUI.Testing;
       use Gtk.Tree_Model;
@@ -4146,6 +4410,9 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas finger drawing",
             Test_Canvas_Finger_Drawing'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas tool image import", Test_Canvas_Tool_Image'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas clipboard image import",

@@ -576,7 +576,7 @@ not wait for the complete user turn.
 | `Coyote_Canvas_Composite_Tests` (`test/src/coyote_canvas_composite_tests.ads/.adb`) | Pixel/PNG, crop/history, partial-alpha, invalid-input, and output-limit tests. |
 | `Coyote_Canvas.Rasters` (`src/coyote_canvas-rasters.ads/.adb`) | Bounded native-size PNG/JPEG preflight and decode through `Coyote_Image_Decoder`; no Markdown thumbnail policy. |
 | `Coyote_Canvas.SVG` (`src/coyote_canvas-svg.ads/.adb`, `src/coyote_canvas_svg_c.c`) | Bounded static UTF-8 SVG preflight with libxml2 and one-time RGBA rasterization with librsvg/Cairo. |
-| `Coyote_GUI.Canvas_Import_Jobs` (`src/coyote_gui/coyote_gui-canvas_import_jobs.ads/.adb`) | Bounded regular-file batches and clipboard decode on one worker; all-or-nothing GTK-main-task completion. |
+| `Coyote_GUI.Canvas_Import_Jobs` (`src/coyote_gui/coyote_gui-canvas_import_jobs.ads/.adb`) | Bounded regular-file batches, clipboard decode, and validated PNG/JPEG tool-result import on one worker; all-or-nothing GTK-main-task completion. |
 | `Coyote_GUI.Canvas_Recovery_Jobs` (`src/coyote_gui/coyote_gui-canvas_recovery_jobs.ads/.adb`) | One background recovery job per Canvas; binds each job to the resolved session, transfers validated loads and an exclusive Canvas lease, and saves owned snapshots without accessing GTK. |
 | `Coyote_Canvas.Import_Service` (`src/coyote_canvas-import_service.ads/.adb`, `src/coyote_canvas_import_c.c`) | Private same-user Unix socket, per-binding capability, bounded file intake, and receipt lookup by request ID. |
 | `Coyote_Canvas.Revisions.Recovery` (`src/coyote_canvas-revisions-recovery.ads/.adb`) | Versioned metadata codec; extract a fork subset with stable IDs, ancestry, and independent stroke storage. |
@@ -3500,8 +3500,10 @@ pixels separate from display transforms, and keep normal Canvas composition,
 editable history, and frozen attachment lifetimes distinct.
 
 The local workflow extends the existing typed queue, provider and replay
-contracts. Plain, virtual-agent image steering, and assistant Markdown or
-shell tool-result image handling are not changed. Comparison and explicitly
+contracts. Plain, virtual-agent image steering, assistant Markdown, and
+shell tool-result capture and provider transport are unchanged. Native Tool
+Call Details can explicitly import captured PNG or JPEG results into Canvas
+(PCR-140). Comparison and explicitly
 linked agent branches are specified as follow-on design. STP §4.6 identifies
 planned qualification; no end-to-end qualification or product acceptance is claimed.
 

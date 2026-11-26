@@ -296,6 +296,30 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end Reveal_Recorded_Revision;
 
+   function Add_Tool_Image_To_Canvas
+     (Parent : Gtk.Window.Gtk_Window; Binding : Natural;
+      Data : Unbounded_String; Media_Type : String) return Boolean
+   is
+      F : constant access Instance := Current_Frontend;
+   begin
+      if F = null or else Parent = null or else F.Win /= Parent
+        or else F.Canvas_Transition or else Binding /= F.Canvas_Binding
+        or else not F.Canvas_Item.Get_Sensitive
+      then
+         return False;
+      end if;
+      Coyote_GUI.Canvas.Import_Tool_Image
+        (F.Canvas_Window, Parent.all'Access, Data, Media_Type);
+      return True;
+   end Add_Tool_Image_To_Canvas;
+
+   procedure Advance_Canvas_Binding (F : in out Instance) is
+   begin
+      F.Canvas_Binding := F.Canvas_Binding + 1;
+      F.Stack.Set_Tool_Image_Handler
+        (Add_Tool_Image_To_Canvas'Access, F.Canvas_Binding);
+   end Advance_Canvas_Binding;
+
    procedure Apply_Update_Visible (F : in out Instance; U : Coyote_GUI.Update);
    procedure Apply_Agent_Menu_Sensitivity (F : in out Instance);
 
@@ -2260,6 +2284,8 @@ package body Coyote_App.Frontend.GUI is
             Apply_Agent_Menu_Sensitivity (F);
 
          when Reset_Agents =>
+            Advance_Canvas_Binding (F);
+            F.Canvas_Bound := False;
             F.Canvas_Session := Null_Unbounded_String;
             F.Attachments.Clear;
             F.Attachment_Pending := False;
@@ -2323,6 +2349,12 @@ package body Coyote_App.Frontend.GUI is
             Coyote_GUI.Canvas.Suspend (F.Canvas_Window, False);
 
          when Set_Session_Identity =>
+            --  History is replayed before bootstrap publishes its identity.
+            --  Reset_Agents already retired any previous binding.
+            if F.Canvas_Bound and then F.Canvas_Session /= U.Text then
+               Advance_Canvas_Binding (F);
+            end if;
+            F.Canvas_Bound := True;
             F.Canvas_Transition := False;
             F.Canvas_Item.Set_Sensitive (True);
             F.Canvas_Session := U.Text;
@@ -5177,6 +5209,7 @@ package body Coyote_App.Frontend.GUI is
             Ada.Environment_Variables.Set ("COYOTE_RPC_ENDPOINT", "");
       end;
       Coyote_GUI.Conversation_Stack.Create (F.Stack, F.Win.all'Access);
+      Advance_Canvas_Binding (F);
       Coyote_GUI.Conversation_Stack.Set_Fork_Handler
         (F.Stack, On_Native_Fork'Access);
       Coyote_GUI.Conversation_Stack.Set_Tool_Action_Handler

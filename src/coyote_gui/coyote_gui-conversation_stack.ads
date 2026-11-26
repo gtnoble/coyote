@@ -15,6 +15,7 @@ with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
 with Coyote_GUI.Text_Safety;
+with Coyote_GUI.Tool_Detail_Window;
 with Glib;
 with Glib.Main;
 with Gtk.Box;
@@ -59,6 +60,9 @@ package Coyote_GUI.Conversation_Stack is
    procedure Set_Fork_Handler (C : in out Instance; Handler : Fork_Handler);
 
    --  Register the callback used by native tool actions.
+   procedure Set_Tool_Image_Handler
+     (C : in out Instance; Handler : Tool_Detail_Window.Image_Handler;
+      Binding : Natural);
    procedure Set_Tool_Action_Handler
      (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler);
 
@@ -275,6 +279,8 @@ private
       Tools               : Tool_Maps.Map;
       Timer_Id            : Glib.Main.G_Source_Id := 0;
       Tool_Action_Handler : Coyote_GUI.Tool_Action_Handler;
+      Tool_Image_Handler  : Tool_Detail_Window.Image_Handler;
+      Tool_Image_Binding  : Natural := 0;
       Selected_Tool       : Ada.Strings.Unbounded.Unbounded_String;
       Has_Exchange        : Boolean                      := False;
       Step_Open           : Boolean                      := False;

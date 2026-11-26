@@ -23,7 +23,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    subtype Slot_Index is Positive range 1 .. Max_Outstanding;
    subtype File_Index is Positive range 1 .. MAX_FILES;
    type Source_Kind is
-     (Bytes_Source, Files_Source, Tiled_Files_Source, Batch_Source);
+     (Bytes_Source, Base64_Source, Files_Source, Tiled_Files_Source,
+      Batch_Source);
    type Job_State is (Free, Queued, Running, Complete);
    type Stored_Path_List is array (File_Index) of Unbounded_String;
    type Raw_Pixbuf_List is
@@ -87,7 +88,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
 
    protected Queue is
       procedure Add_Bytes
-        (Data     : Unbounded_String;
+        (Kind     : Source_Kind;
+         Data     : Unbounded_String;
          Expected : Coyote_Canvas.Rasters.Format;
          Token    : System.Address;
          Callback : Completion;
@@ -103,7 +105,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       procedure Add_Batch
         (Data : Coyote_Canvas.Import_Service.Text_List;
          Token : System.Address; Callback : Completion; Index : out Natural);
-      procedure Cancel_Files (Token : System.Address);
+      procedure Cancel_Input (Token : System.Address);
       function Cancelled (Index : Slot_Index) return Boolean;
       procedure Claim (Index : out Natural; Found : out Boolean);
       procedure Restore (Index : Slot_Index);
@@ -137,7 +139,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
 
    protected body Queue is
       procedure Add_Bytes
-        (Data     : Unbounded_String;
+        (Kind     : Source_Kind;
+         Data     : Unbounded_String;
          Expected : Coyote_Canvas.Rasters.Format;
          Token    : System.Address;
          Callback : Completion;
@@ -149,7 +152,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             if Items (I).State = Free then
                Items (I) :=
                  (State       => Queued,
-                  Kind        => Bytes_Source,
+                  Kind        => Kind,
                   Cancelled   => False,
                   Data        => Data,
                   Paths       => (others => Null_Unbounded_String),
@@ -249,18 +252,17 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          end loop;
       end Add_Batch;
 
-      procedure Cancel_Files (Token : System.Address) is
+      procedure Cancel_Input (Token : System.Address) is
       begin
          for Item of Items loop
             if Item.State /= Free
-              and then (Item.Kind = Files_Source
-                        or else Item.Kind = Tiled_Files_Source)
+              and then Item.Kind in Files_Source | Tiled_Files_Source | Base64_Source
               and then Item.Token = Token
             then
                Item.Cancelled := True;
             end if;
          end loop;
-      end Cancel_Files;
+      end Cancel_Input;
 
       function Cancelled (Index : Slot_Index) return Boolean is
         (Items (Index).Cancelled);
@@ -391,10 +393,10 @@ package body Coyote_GUI.Canvas_Import_Jobs is
 
    function Pending_Count return Natural is (Queue.Count);
 
-   procedure Cancel_Files (Token : System.Address) is
+   procedure Cancel_Input (Token : System.Address) is
    begin
-      Queue.Cancel_Files (Token);
-   end Cancel_Files;
+      Queue.Cancel_Input (Token);
+   end Cancel_Input;
 
    task Worker is
       entry Start (Job_Index : Slot_Index);
@@ -627,7 +629,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       if Length (Data) > Coyote_Canvas.Rasters.MAX_ENCODED_BYTES then
          return;
       end if;
-      Queue.Add_Bytes (Data, Expected, Token, Callback, Index);
+      Queue.Add_Bytes (Bytes_Source, Data, Expected, Token, Callback, Index);
       if Index = 0 then
          return;
       end if;
@@ -640,6 +642,31 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             Queue.Release (Slot_Index (Index));
       end;
    end Submit_Bytes;
+
+   procedure Submit_Base64
+     (Data     : Unbounded_String;
+      Expected : Coyote_Canvas.Rasters.Format;
+      Token    : System.Address;
+      Callback : Completion;
+      Accepted : out Boolean)
+   is
+      Index : Natural;
+   begin
+      Accepted := False;
+      if Length (Data) not in 4 .. MAX_BASE64_BYTES then
+         return;
+      end if;
+      Queue.Add_Bytes (Base64_Source, Data, Expected, Token, Callback, Index);
+      if Index /= 0 then
+         begin
+            Start_Pump;
+            Accepted := True;
+         exception
+            when others =>
+               Queue.Release (Slot_Index (Index));
+         end;
+      end if;
+   end Submit_Base64;
 
    procedure Submit_Batch
      (Data     : Coyote_Canvas.Import_Service.Text_List;
@@ -837,6 +864,78 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          return Queue.Count > 0;
    end Pump;
 
+   procedure Decode_Base64
+     (Text : String; Expected : Coyote_Canvas.Rasters.Format;
+      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Width, Height : out Natural; Error : out Unbounded_String)
+   is
+      use type Interfaces.C.size_t;
+      function Decode
+        (Data : Interfaces.C.char_array; Size : out Interfaces.C.size_t)
+         return System.Address
+        with Import, Convention => C, External_Name => "g_base64_decode";
+      procedure Release (Data : System.Address)
+        with Import, Convention => C, External_Name => "g_free";
+      function Value (Ch : Character) return Integer is
+        (case Ch is
+           when 'A' .. 'Z' => Character'Pos (Ch) - Character'Pos ('A'),
+           when 'a' .. 'z' => Character'Pos (Ch) - Character'Pos ('a') + 26,
+           when '0' .. '9' => Character'Pos (Ch) - Character'Pos ('0') + 52,
+           when '+' => 62,
+           when '/' => 63,
+           when others => -1);
+      Invalid : constant String := "Tool image contains invalid base64 data.";
+      Data : System.Address := System.Null_Address;
+      Size : Interfaces.C.size_t;
+      Padding : Natural := 0;
+   begin
+      Pixels := Coyote_Image_Decoder.Null_Pixbuf;
+      Width := 0;
+      Height := 0;
+      Error := To_Unbounded_String (Invalid);
+      if Text'Length not in 4 .. MAX_BASE64_BYTES
+        or else Text'Length mod 4 /= 0
+      then
+         return;
+      end if;
+      if Text (Text'Last) = '=' then
+         Padding := (if Text (Text'Last - 1) = '=' then 2 else 1);
+      end if;
+      for Ch of Text (Text'First .. Text'Last - Padding) loop
+         if Value (Ch) < 0 then
+            return;
+         end if;
+      end loop;
+      --  Unused bits in the last sextet must be zero.
+      if (Padding = 1 and then Value (Text (Text'Last - 1)) mod 4 /= 0)
+        or else (Padding = 2 and then Value (Text (Text'Last - 2)) mod 16 /= 0)
+      then
+         return;
+      elsif Text'Length / 4 * 3 - Padding >
+        Coyote_Canvas.Rasters.MAX_ENCODED_BYTES
+      then
+         Error := To_Unbounded_String ("Tool image exceeds 8 MiB.");
+         return;
+      end if;
+      Data := Decode (Interfaces.C.To_C (Text), Size);
+      if Data /= System.Null_Address
+        and then Size = Interfaces.C.size_t (Text'Length / 4 * 3 - Padding)
+      then
+         declare
+            Bytes : String (1 .. Natural (Size)) with Import, Address => Data;
+         begin
+            Coyote_Canvas.Rasters.Decode
+              (Bytes, Expected, Pixels, Width, Height, Error);
+         end;
+      end if;
+      Release (Data);
+   exception
+      when others =>
+         Release (Data);
+         Coyote_Image_Decoder.Release (Pixels);
+         Error := To_Unbounded_String ("Could not decode the tool image.");
+   end Decode_Base64;
+
    task body Worker is
       Index : Slot_Index;
       Kind : Source_Kind;
@@ -874,10 +973,18 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                SVG_Total := 0;
                Staging_Total := 0;
                Error := Null_Unbounded_String;
-               if Kind = Bytes_Source then
-                  Coyote_Canvas.Rasters.Decode
-                    (To_String (Data), Expected, Raw (1), Width, Height,
-                     Error);
+               if Kind in Bytes_Source | Base64_Source then
+                  if Queue.Cancelled (Index) then
+                     Error := To_Unbounded_String ("Image import cancelled.");
+                  elsif Kind = Base64_Source then
+                     Decode_Base64
+                       (To_String (Data), Expected, Raw (1), Width, Height,
+                        Error);
+                  else
+                     Coyote_Canvas.Rasters.Decode
+                       (To_String (Data), Expected, Raw (1), Width, Height,
+                        Error);
+                  end if;
                   if Length (Error) = 0 then
                      Pixel_Count := 1;
                      Decoded_Total := Pixel_Bytes (Raw (1));

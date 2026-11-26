@@ -349,6 +349,8 @@ private
       Canvas_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
       Canvas_Transition       : Boolean := False;
       Canvas_Session          : Unbounded_String;
+      Canvas_Binding          : Natural := 0;
+      Canvas_Bound            : Boolean := False;
       Canvas_Model_OK         : Boolean := False;
       Attachments             : LLM.Types.User_Images.Vector;
       Attachment_Text         : Unbounded_String;

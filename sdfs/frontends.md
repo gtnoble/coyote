@@ -1,5 +1,20 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Add tool-result images to Canvas (PCR-140)
+
+Tool Call Details offers **Add to Canvas** for successful, captured PNG
+and JPEG results, including replayed calls. The worker validates the
+original payload under the ordinary raster limits. The import creates a
+new Original without changing the current draft, selection, or staged
+attachments. Session transitions invalidate old actions and pending
+requests. Durable imports use the existing Canvas save transaction;
+memory-only imports do not write a sidecar.
+
+Both development builds, display-backed AUnit (1,137/1,137), GTK
+interactions (9/9), runner fault containment, and Help checks passed.
+The new GTK regression covers saved PNG replay, live JPEG, native pixels,
+failed publication, malformed data, and stale inspectors.
+
 ## 2026-11-22 — Canvas hold-to-pan from the Intuos pad (PCR-139)
 
 The far-right ExpressKey of the CTL-4100WL arms pen panning with the

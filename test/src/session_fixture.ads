@@ -43,7 +43,8 @@ package Session_Fixture is
       UUID     : String;
       Tool_Id  : String;
       Result   : String;
-      Is_Error : Boolean := False);
+      Is_Error : Boolean := False;
+      Media_Type : String := "");
 
    --  Append one legacy envelope line containing a user message.
    procedure Append_Legacy_User_Message

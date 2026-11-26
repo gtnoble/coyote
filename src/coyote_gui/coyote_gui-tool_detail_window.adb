@@ -561,9 +561,43 @@ package body Coyote_GUI.Tool_Detail_Window is
       end if;
    end Initialize_Divider;
 
+   type Add_Image_Context is record
+      Handler : Image_Handler;
+      Binding : Natural;
+      Data, Media_Type : Unbounded_String;
+      Feedback : Gtk.Label.Gtk_Label;
+   end record;
+   package Image_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Button.Gtk_Button_Record, Add_Image_Context);
+
+   procedure On_Add_Image_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Context : Add_Image_Context)
+   is
+      Window : constant Gtk.Window.Gtk_Window :=
+        Gtk.Window.Gtk_Window (Button.Get_Toplevel);
+   begin
+      if not Context.Handler.all
+        (Window.Get_Transient_For, Context.Binding, Context.Data,
+         To_String (Context.Media_Type))
+      then
+         Context.Feedback.Set_Text
+           ("This result cannot be added to the current Canvas.");
+         Context.Feedback.Show;
+      else
+         Context.Feedback.Hide;
+      end if;
+   exception
+      when others =>
+         Context.Feedback.Set_Text ("Could not add the result to Canvas.");
+         Context.Feedback.Show;
+   end On_Add_Image_Clicked;
+
    procedure Show
      (Info        : Coyote_GUI.Tool_Info;
-      Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class)
+      Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class;
+      On_Add_Image : Image_Handler := null;
+      Binding : Natural := 0)
    is
       use Gtk.Box;
       use Gtk.Frame;
@@ -606,6 +640,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       Window.Set_Name ("tool-detail-window");
       Window.Set_Type_Hint (Gdk.Window.Window_Type_Hint_Normal);
       Window.Set_Transient_For (Main_Window);
+      Window.Set_Destroy_With_Parent (True);
       Window.Set_Default_Size (760, 600);
       Window.Set_Size_Request (600, 400);
       Window.On_Key_Press_Event (On_Detail_Key_Press'Access);
@@ -662,6 +697,29 @@ package body Coyote_GUI.Tool_Detail_Window is
          Add_Image_Result (Result_Box, Result);
       else
          Add_Text_View (Result_Box, Result, "tool-detail-result");
+      end if;
+      if On_Add_Image /= null and then Info.Completed
+        and then Info.Result_Status = Success and then Result'Length > 0
+        and then To_String (Info.Media_Type) in "image/png" | "image/jpeg"
+      then
+         declare
+            Add_Button : Gtk.Button.Gtk_Button;
+            Feedback : Gtk_Label;
+         begin
+            Gtk.Button.Gtk_New_With_Mnemonic (Add_Button, "_Add to Canvas");
+            Add_Button.Set_Name ("tool-detail-add-to-canvas");
+            Add_Button.Set_Halign (Gtk.Widget.Align_Start);
+            Gtk_New (Feedback, "");
+            Feedback.Set_Xalign (0.0);
+            Feedback.Set_No_Show_All (True);
+            Feedback.Set_Name ("tool-detail-canvas-feedback");
+            Image_Callback.Connect
+              (Add_Button, "clicked", On_Add_Image_Clicked'Access,
+               (On_Add_Image, Binding, Info.Result_Text, Info.Media_Type,
+                Feedback));
+            Result_Box.Pack_Start (Add_Button, False, False, 0);
+            Result_Box.Pack_Start (Feedback, False, False, 0);
+         end;
       end if;
       Result_Frame.Add (Result_Box);
       Panes.Pack2 (Result_Frame, Resize => True, Shrink => False);
