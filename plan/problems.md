@@ -3,6 +3,21 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-143 — Session fork exhausts the agent task stack
+
+- **Date reported and resolved:** 2026-11-26
+- **Category:** Code, Test
+- **Priority:** 2-Serious (forking affected sessions can crash the app;
+  no known workaround for a fork that must retain the large record).
+- **Affected baseline:** `583aab8`, `Session_Lister.Fork_Session`.
+- **Cause:** Appending the newline with string concatenation put a
+  record-sized temporary on the agent task stack before the stream write.
+- **Correction:** Write the existing record and newline separately. Keep
+  fork staging, publication, and JSONL output unchanged.
+- **Status:** Resolved in development. The new 3 MiB regression fails on
+  the original writer and passes after the change. Full display-backed
+  AUnit: 1,140/1,140; GTK interactions: 9/9; runner self-test passed.
+
 ## PCR-142 — Copy a rendered assistant response to Canvas
 
 - **Category:** Enhancement, Code, Test, Help

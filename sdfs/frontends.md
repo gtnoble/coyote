@@ -1,5 +1,18 @@
 # Component Development Log — Frontends
 
+## 2026-11-26 — Preserve large records when forking (PCR-143)
+
+The fork writer now writes the record and LF separately rather than
+allocating a second copy of the record on the agent task stack. The
+fork publication transaction and output format are unchanged.
+
+A new AUnit case forks a session containing a 3 MiB tool-result payload
+on a 2 MiB Ada task stack. It failed with the original writer and passes
+with the fix, checking exact record bytes and the following line boundary.
+The development application and test builds passed. The display-backed
+suite passed 1,140/1,140, GTK interactions passed 9/9, and the GTK runner
+fault-containment self-test passed. This is developer verification.
+
 ## 2026-11-22 — Add whole rendered responses to Canvas (PCR-142)
 
 **Add Response to Canvas** captures the text blocks of one completed

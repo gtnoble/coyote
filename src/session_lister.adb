@@ -891,7 +891,9 @@ package body Session_Lister is
 
             procedure Write_Raw_Line (Line : String) is
             begin
-               String'Write (Out_S, Line & ASCII.LF);
+               --  Avoid a record-sized temporary on the agent task stack.
+               String'Write (Out_S, Line);
+               Character'Write (Out_S, ASCII.LF);
             end Write_Raw_Line;
 
          begin

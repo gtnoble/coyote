@@ -5,6 +5,7 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded.Text_IO;
 with Ada.Text_IO;
 with LLM.Session_Store;
 with LLM.Types;
@@ -639,6 +640,91 @@ package body Session_Lister_Tests is
          raise;
    end Test_Fork_Session_Second_Turn;
 
+   procedure Test_Fork_Session_Large_Record (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home     : constant String := Test_Home_Root & "/fork-large-record";
+      Src_UUID : constant String := "test-fork-src-large-record";
+      --  The 3 MiB payload exceeds the GUI worker's 2 MiB task stack.
+      CHUNK : constant String (1 .. 4_096) := (others => 'x');
+      CHUNK_COUNT : constant := 768;
+      Tool_Start : constant String :=
+        "{""type"":""message"",""message"":{""role"":""toolResult"","
+        & """content"":[{""type"":""text"",""text"":""";
+      Tool_End : constant String := """}]}}";
+      Reply : constant String :=
+        "{""type"":""message"",""message"":{""role"":""assistant"","
+        & """content"":[{""type"":""text"",""text"":""Done""}]}}";
+      Expected : Unbounded_String := To_Unbounded_String (Tool_Start);
+      File     : Ada.Text_IO.File_Type;
+      Fork_Id  : Unbounded_String;
+   begin
+      Prepare_Test_Home (Home);
+      Write_Fork_Source
+        (Src_UUID,
+         "{""type"":""session"",""version"":3,""id"":""" & Src_UUID & """}"
+         & ASCII.LF
+         & "{""type"":""message"",""message"":{""role"":""user"","
+         & """content"":[{""type"":""text"",""text"":""Hello""}]}}"
+         & ASCII.LF);
+      Ada.Text_IO.Open
+        (File, Ada.Text_IO.Append_File,
+         Sessions_Fork_Dir & "/" & Src_UUID & ".jsonl");
+      Ada.Text_IO.Put (File, Tool_Start);
+      Write_Payload :
+      for I in 1 .. CHUNK_COUNT loop
+         Ada.Text_IO.Put (File, CHUNK);
+         Append (Expected, CHUNK);
+      end loop Write_Payload;
+      Append (Expected, Tool_End);
+      Ada.Text_IO.Put_Line (File, Tool_End);
+      Ada.Text_IO.Put_Line (File, Reply);
+      Ada.Text_IO.Close (File);
+
+      Fork_On_Task :
+      declare
+         task Worker with Storage_Size => 2 * 1_024 * 1_024 is
+            entry Run (Id : out Unbounded_String);
+         end Worker;
+
+         task body Worker is
+         begin
+            accept Run (Id : out Unbounded_String) do
+               Id := To_Unbounded_String
+                 (Fork_Session (Src_UUID, 1, Fork_Target_Cwd));
+            end Run;
+         end Worker;
+      begin
+         Worker.Run (Fork_Id);
+      end Fork_On_Task;
+
+      Assert (Length (Fork_Id) > 0, "Fork should copy the large record");
+      Ada.Text_IO.Open
+        (File, Ada.Text_IO.In_File, Find_Session_File (To_String (Fork_Id)));
+      Ada.Text_IO.Skip_Line (File, 3);  --  Header, name, and user message
+      Assert
+        (Ada.Strings.Unbounded.Text_IO.Get_Line (File) = Expected,
+         "Fork should preserve the large record byte for byte");
+      Assert
+        (Ada.Text_IO.Get_Line (File) = Reply
+         and then Ada.Text_IO.End_Of_File (File),
+         "Fork should keep the following record on a separate line");
+      Ada.Text_IO.Close (File);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Fork_Session_Large_Record;
+
    --  Requesting a turn that does not exist returns "".
    procedure Test_Fork_Session_Beyond_End (T : in out Test) is
       pragma Unreferenced (T);
@@ -938,6 +1024,10 @@ package body Session_Lister_Tests is
         (Session_Lister_Caller.Create
            ("Fork_Session forks after second turn",
             Session_Lister_Tests.Test_Fork_Session_Second_Turn'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Fork_Session preserves a large record on a task",
+            Test_Fork_Session_Large_Record'Access));
       Result.Add_Test
         (Session_Lister_Caller.Create
            ("Fork_Session returns empty beyond last turn",
