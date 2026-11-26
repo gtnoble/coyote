@@ -10,6 +10,7 @@ with Ada.Strings.Unbounded;
 with Coyote_Canvas.Rasters;
 with Coyote_Canvas.Import_Service;
 with Gdk.Pixbuf;
+with Coyote_Image_Loader;
 with Interfaces.C;
 with System;
 
@@ -45,6 +46,13 @@ package Coyote_GUI.Canvas_Import_Jobs is
    procedure Submit_Base64
      (Data     : Ada.Strings.Unbounded.Unbounded_String;
       Expected : Coyote_Canvas.Rasters.Format;
+      Token    : System.Address;
+      Callback : Completion;
+      Accepted : out Boolean);
+
+   --  Reread a rendered response image, verify it, and decode that snapshot.
+   procedure Submit_Original
+     (Original : Coyote_Image_Loader.Source;
       Token    : System.Address;
       Callback : Completion;
       Accepted : out Boolean);

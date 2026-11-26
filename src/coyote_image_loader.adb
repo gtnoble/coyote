@@ -244,12 +244,8 @@ package body Coyote_Image_Loader is
       end if;
    end On_Size_Prepared;
 
-   procedure Load_Raw
-     (Root        :     String;
-      Destination :     String;
-      Width       :     Positive;
-      Pixbuf      : out Coyote_Image_Decoder.Pixbuf_Handle;
-      Error       : out Unbounded_String)
+   procedure Read_Source
+     (Root, Destination : String; Data, Error : out Unbounded_String)
    is
       Root_FD        : Coyote_Image_IO.Descriptor         :=
         Coyote_Image_IO.Invalid_Descriptor;
@@ -257,212 +253,256 @@ package body Coyote_Image_Loader is
         Coyote_Image_IO.Invalid_Descriptor;
       File_FD        : Coyote_Image_IO.Descriptor         :=
         Coyote_Image_IO.Invalid_Descriptor;
-      Decoder        : Coyote_Image_Decoder.Loader_Handle :=
-        Coyote_Image_Decoder.Null_Loader;
-      Decoder_Closed : Boolean                            := False;
-      Size_State     : aliased Coyote_Image_Decoder.Decode_State;
-      Data           : Unbounded_String;
-      Buffer         : String (1 .. 16_384);
+      Buffer : String (1 .. 16_384);
    begin
-      Pixbuf := Coyote_Image_Decoder.Null_Pixbuf;
-      Error  := Null_Unbounded_String;
-      begin
-         if Root'Length = 0 or else Is_Control (Root)
-           or else Is_Control (Destination)
-         then
-            Error := To_Unbounded_String ("Image path is invalid");
+      Data := Null_Unbounded_String;
+      Error := Null_Unbounded_String;
+      if Root'Length = 0 or else Is_Control (Root)
+        or else Is_Control (Destination)
+      then
+         Error := To_Unbounded_String ("Image path is invalid");
+      else
+         Coyote_Image_IO.Open_Root (Root, Root_FD);
+         if Root_FD = Coyote_Image_IO.Invalid_Descriptor then
+            Error := To_Unbounded_String ("Image root is not accessible");
          else
-            Coyote_Image_IO.Open_Root (Root, Root_FD);
-            if Root_FD = Coyote_Image_IO.Invalid_Descriptor then
-               Error := To_Unbounded_String ("Image root is not accessible");
-            else
-               Directory_FD := Coyote_Image_IO.Duplicate (Root_FD);
-               if Directory_FD = Coyote_Image_IO.Invalid_Descriptor then
+            Directory_FD := Coyote_Image_IO.Duplicate (Root_FD);
+            if Directory_FD = Coyote_Image_IO.Invalid_Descriptor then
+               Error :=
+                 To_Unbounded_String
+                   ("Image root descriptor could not be duplicated");
+            end if;
+            declare
+               Root_Path      : constant String :=
+                 Coyote_Image_IO.Readlink_Root (Root_FD);
+               Target         : constant String :=
+                 Local_Path (Root_Path, Destination);
+               Canonical_Root : constant String := Canonical (Root_Path);
+               Canonical_File : constant String := Canonical (Target);
+               Relative       : Unbounded_String;
+            begin
+               if Root_Path'Length = 0 or else Canonical_Root'Length = 0
+                 or else
+                 (Root_Path'Length >= 10
+                  and then Root_Path (Root_Path'Last - 9 .. Root_Path'Last)
+                    = " (deleted)")
+               then
                   Error :=
                     To_Unbounded_String
-                      ("Image root descriptor could not be duplicated");
+                      ("Image root path cannot be resolved");
+               elsif Target'Length = 0 then
+                  Error :=
+                    To_Unbounded_String
+                      ("Image path is invalid or non-local");
+               elsif Canonical_File'Length = 0 then
+                  Error :=
+                    To_Unbounded_String ("Image path escapes its root");
+               else
+                  declare
+                     R : constant String := Canonical_Root;
+                     F : constant String := Canonical_File;
+                  begin
+                     if R /= "/"
+                       and then
+                       (F'Length < R'Length
+                        or else F (F'First .. F'First + R'Length - 1) /= R
+                        or else
+                        (F'Length > R'Length
+                         and then F (F'First + R'Length) /= '/'))
+                     then
+                        Error :=
+                          To_Unbounded_String
+                            ("Image path escapes its root");
+                     elsif R = "/" then
+                        Relative :=
+                          To_Unbounded_String (F (F'First + 1 .. F'Last));
+                     elsif F'Length = R'Length then
+                        Error :=
+                          To_Unbounded_String ("Image path is not a file");
+                     else
+                        Relative :=
+                          To_Unbounded_String
+                            (F (F'First + R'Length + 1 .. F'Last));
+                     end if;
+                  end;
                end if;
-               declare
-                  Root_Path      : constant String :=
-                    Coyote_Image_IO.Readlink_Root (Root_FD);
-                  Target         : constant String :=
-                    Local_Path (Root_Path, Destination);
-                  Canonical_Root : constant String := Canonical (Root_Path);
-                  Canonical_File : constant String := Canonical (Target);
-                  Relative       : Unbounded_String;
-               begin
-                  if Root_Path'Length = 0 or else Canonical_Root'Length = 0
-                    or else
-                    (Root_Path'Length >= 10
-                     and then Root_Path (Root_Path'Last - 9 .. Root_Path'Last)
-                       = " (deleted)")
-                  then
-                     Error :=
-                       To_Unbounded_String
-                         ("Image root path cannot be resolved");
-                  elsif Target'Length = 0 then
-                     Error :=
-                       To_Unbounded_String
-                         ("Image path is invalid or non-local");
-                  elsif Canonical_File'Length = 0 then
-                     Error :=
-                       To_Unbounded_String ("Image path escapes its root");
-                  else
-                     declare
-                        R : constant String := Canonical_Root;
-                        F : constant String := Canonical_File;
-                     begin
-                        if R /= "/"
-                          and then
-                          (F'Length < R'Length
-                           or else F (F'First .. F'First + R'Length - 1) /= R
-                           or else
-                           (F'Length > R'Length
-                            and then F (F'First + R'Length) /= '/'))
-                        then
-                           Error :=
-                             To_Unbounded_String
-                               ("Image path escapes its root");
-                        elsif R = "/" then
-                           Relative :=
-                             To_Unbounded_String (F (F'First + 1 .. F'Last));
-                        elsif F'Length = R'Length then
-                           Error :=
-                             To_Unbounded_String ("Image path is not a file");
-                        else
-                           Relative :=
-                             To_Unbounded_String
-                               (F (F'First + R'Length + 1 .. F'Last));
-                        end if;
-                     end;
-                  end if;
-                  if Length (Error) = 0 and then Length (Relative) = 0 then
-                     Error := To_Unbounded_String ("Image path is not a file");
-                  end if;
-                  if Length (Error) = 0 then
-                     declare
-                        Text  : constant String := To_String (Relative);
-                        Start : Positive        := Text'First;
-                     begin
-                        while Start <= Text'Last loop
+               if Length (Error) = 0 and then Length (Relative) = 0 then
+                  Error := To_Unbounded_String ("Image path is not a file");
+               end if;
+               if Length (Error) = 0 then
+                  declare
+                     Text  : constant String := To_String (Relative);
+                     Start : Positive        := Text'First;
+                  begin
+                     while Start <= Text'Last loop
+                        declare
+                           Stop : Natural := Start;
+                        begin
+                           while Stop <= Text'Last
+                             and then Text (Stop) /= '/'
+                           loop
+                              Stop := Stop + 1;
+                           end loop;
                            declare
-                              Stop : Natural := Start;
+                              Part : constant String            :=
+                                Text (Start .. Stop - 1);
+                              Next : Coyote_Image_IO.Descriptor :=
+                                Coyote_Image_IO.Invalid_Descriptor;
                            begin
-                              while Stop <= Text'Last
-                                and then Text (Stop) /= '/'
-                              loop
-                                 Stop := Stop + 1;
-                              end loop;
-                              declare
-                                 Part : constant String            :=
-                                   Text (Start .. Stop - 1);
-                                 Next : Coyote_Image_IO.Descriptor :=
-                                   Coyote_Image_IO.Invalid_Descriptor;
-                              begin
-                                 if Part = "." or else Part = ".." then
+                              if Part = "." or else Part = ".." then
+                                 Error :=
+                                   To_Unbounded_String
+                                     ("Invalid image path component");
+                              elsif Stop <= Text'Last then
+                                 Coyote_Image_IO.Open_Directory
+                                   (Directory_FD, Part, Next);
+                                 if Next
+                                   = Coyote_Image_IO.Invalid_Descriptor
+                                 then
                                     Error :=
                                       To_Unbounded_String
-                                        ("Invalid image path component");
-                                 elsif Stop <= Text'Last then
-                                    Coyote_Image_IO.Open_Directory
-                                      (Directory_FD, Part, Next);
-                                    if Next
-                                      = Coyote_Image_IO.Invalid_Descriptor
-                                    then
-                                       Error :=
-                                         To_Unbounded_String
-                                           ("Inaccessible image directory or symlink");
-                                    else
-                                       Coyote_Image_IO.Close (Directory_FD);
-                                       Directory_FD := Next;
-                                    end if;
+                                        ("Inaccessible image directory or symlink");
                                  else
-                                    Coyote_Image_IO.Open_File
-                                      (Directory_FD, Part, File_FD);
-                                    if File_FD
-                                      = Coyote_Image_IO.Invalid_Descriptor
-                                    then
-                                       Error :=
-                                         To_Unbounded_String
-                                           ("Inaccessible image file or symlink");
-                                    end if;
+                                    Coyote_Image_IO.Close (Directory_FD);
+                                    Directory_FD := Next;
                                  end if;
-                                 exit when Length (Error) /= 0
-                                   or else Stop > Text'Last;
-                                 Start := Stop + 1;
-                              end;
+                              else
+                                 Coyote_Image_IO.Open_File
+                                   (Directory_FD, Part, File_FD);
+                                 if File_FD
+                                   = Coyote_Image_IO.Invalid_Descriptor
+                                 then
+                                    Error :=
+                                      To_Unbounded_String
+                                        ("Inaccessible image file or symlink");
+                                 end if;
+                              end if;
+                              exit when Length (Error) /= 0
+                                or else Stop > Text'Last;
+                              Start := Stop + 1;
                            end;
-                        end loop;
-                     end;
-                  end if;
-                  if Length (Error) = 0 then
-                     declare
-                        Attributes : Coyote_Image_IO.File_Attributes;
-                     begin
-                        Coyote_Image_IO.Attributes (File_FD, Attributes);
-                        if not Attributes.Is_Regular then
-                           Error :=
-                             To_Unbounded_String
-                               ("Image path is not a regular file");
-                        elsif Attributes.Size < 0
-                          or else Attributes.Size > Max_Source_Bytes
-                        then
-                           Error :=
-                             To_Unbounded_String
-                               ("Image exceeds the 8 MiB size limit");
-                        end if;
-                     end;
-                  end if;
-               end;
-            end if;
+                        end;
+                     end loop;
+                  end;
+               end if;
+               if Length (Error) = 0 then
+                  declare
+                     Attributes : Coyote_Image_IO.File_Attributes;
+                  begin
+                     Coyote_Image_IO.Attributes (File_FD, Attributes);
+                     if not Attributes.Is_Regular then
+                        Error :=
+                          To_Unbounded_String
+                            ("Image path is not a regular file");
+                     elsif Attributes.Size < 0
+                       or else Attributes.Size > Max_Source_Bytes
+                     then
+                        Error :=
+                          To_Unbounded_String
+                            ("Image exceeds the 8 MiB size limit");
+                     end if;
+                  end;
+               end if;
+            end;
          end if;
+      end if;
+      if Length (Error) = 0 then
+         Read_Loop :
+         loop
+            declare
+               Count : constant Integer :=
+                 Coyote_Image_IO.Read (File_FD, Buffer);
+            begin
+               exit Read_Loop when Count = 0;
+               if Count < 0 then
+                  Error := To_Unbounded_String ("Image read failed");
+                  exit Read_Loop;
+               elsif Length (Data) + Count > Max_Source_Bytes then
+                  Error :=
+                    To_Unbounded_String
+                      ("Image exceeds the 8 MiB size limit");
+                  exit Read_Loop;
+               else
+                  Append
+                    (Data,
+                     Buffer (Buffer'First .. Buffer'First + Count - 1));
+               end if;
+            end;
+         end loop Read_Loop;
          if Length (Error) = 0 then
-            Read_Loop :
-            loop
-               declare
-                  Count : constant Integer :=
-                    Coyote_Image_IO.Read (File_FD, Buffer);
-               begin
-                  exit Read_Loop when Count = 0;
-                  if Count < 0 then
-                     Error := To_Unbounded_String ("Image read failed");
-                     exit Read_Loop;
-                  elsif Length (Data) + Count > Max_Source_Bytes then
-                     Error :=
-                       To_Unbounded_String
-                         ("Image exceeds the 8 MiB size limit");
-                     exit Read_Loop;
-                  else
-                     Append
-                       (Data,
-                        Buffer (Buffer'First .. Buffer'First + Count - 1));
-                  end if;
-               end;
-            end loop Read_Loop;
-            if Length (Error) = 0 then
-               declare
-                  Bytes : constant String := To_String (Data);
-                  First : Natural         := Bytes'First;
-               begin
-                  while First <= Bytes'Last
-                    and then
-                    (Bytes (First) = ' ' or else Bytes (First) = ASCII.HT
-                     or else Bytes (First) = ASCII.CR
-                     or else Bytes (First) = ASCII.LF)
-                  loop
-                     First := First + 1;
-                  end loop;
-                  if First <= Bytes'Last and then Bytes (First) = '<' then
-                     Error :=
-                       To_Unbounded_String ("SVG images are not supported");
-                  elsif Bytes'Length = 0 or else not Has_Signature (Bytes) then
-                     Error :=
-                       To_Unbounded_String
-                         ("Image signature is not a supported raster format");
-                  end if;
-               end;
-            end if;
+            declare
+               Bytes : constant String := To_String (Data);
+               First : Natural         := Bytes'First;
+            begin
+               while First <= Bytes'Last
+                 and then
+                 (Bytes (First) = ' ' or else Bytes (First) = ASCII.HT
+                  or else Bytes (First) = ASCII.CR
+                  or else Bytes (First) = ASCII.LF)
+               loop
+                  First := First + 1;
+               end loop;
+               if First <= Bytes'Last and then Bytes (First) = '<' then
+                  Error :=
+                    To_Unbounded_String ("SVG images are not supported");
+               elsif Bytes'Length = 0 or else not Has_Signature (Bytes) then
+                  Error :=
+                    To_Unbounded_String
+                      ("Image signature is not a supported raster format");
+               end if;
+            end;
          end if;
+      end if;
+      Coyote_Image_IO.Close (File_FD);
+      Coyote_Image_IO.Close (Directory_FD);
+      Coyote_Image_IO.Close (Root_FD);
+   exception
+      when others =>
+         Coyote_Image_IO.Close (File_FD);
+         Coyote_Image_IO.Close (Directory_FD);
+         Coyote_Image_IO.Close (Root_FD);
+         Data := Null_Unbounded_String;
+         Error := To_Unbounded_String ("Could not read the image source");
+   end Read_Source;
+
+   function Available (Item : Source) return Boolean is
+     (Length (Item.Root) > 0);
+
+   procedure Read_Original
+     (Item : Source; Bytes, Error : out Unbounded_String)
+   is
+   begin
+      Read_Source (To_String (Item.Root), To_String (Item.Destination),
+                   Bytes, Error);
+      if Length (Error) > 0 then
+         Error := To_Unbounded_String
+           ("Could not read the original response image: " & To_String (Error));
+      elsif GNAT.SHA256.Digest (To_String (Bytes)) /= Item.Digest then
+         Error := To_Unbounded_String
+           ("The source image changed after this preview was loaded.");
+      end if;
+      if Length (Error) > 0 then
+         Bytes := Null_Unbounded_String;
+      end if;
+   end Read_Original;
+
+   procedure Load_Raw
+     (Root, Destination : String;
+      Width : Positive;
+      Pixbuf : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Error : out Unbounded_String;
+      Original : out Source)
+   is
+      Decoder : Coyote_Image_Decoder.Loader_Handle :=
+        Coyote_Image_Decoder.Null_Loader;
+      Decoder_Closed : Boolean := False;
+      Size_State : aliased Coyote_Image_Decoder.Decode_State;
+      Data : Unbounded_String;
+   begin
+      Original := No_Source;
+      Pixbuf := Coyote_Image_Decoder.Null_Pixbuf;
+      Read_Source (Root, Destination, Data, Error);
+      begin
          if Length (Error) = 0 then
             Decoder := Coyote_Image_Decoder.New_Loader;
             if Coyote_Image_Decoder.Is_Null (Decoder) then
@@ -558,19 +598,16 @@ package body Coyote_Image_Loader is
          end;
       end if;
       Coyote_Image_Decoder.Free (Decoder);
-      Coyote_Image_IO.Close (File_FD);
-      Coyote_Image_IO.Close (Directory_FD);
-      Coyote_Image_IO.Close (Root_FD);
-      if Length (Error) > 0 and then not Coyote_Image_Decoder.Is_Null (Pixbuf)
-      then
+      if Length (Error) = 0 then
+         Original := (To_Unbounded_String (Root),
+                      To_Unbounded_String (Destination),
+                      GNAT.SHA256.Digest (To_String (Data)));
+      else
          Coyote_Image_Decoder.Release (Pixbuf);
       end if;
    exception
       when E : others =>
          Coyote_Image_Decoder.Free (Decoder);
-         Coyote_Image_IO.Close (File_FD);
-         Coyote_Image_IO.Close (Directory_FD);
-         Coyote_Image_IO.Close (Root_FD);
          Coyote_Image_Decoder.Release (Pixbuf);
          Error :=
            To_Unbounded_String
@@ -586,9 +623,10 @@ package body Coyote_Image_Loader is
    is
       Raw : Coyote_Image_Decoder.Pixbuf_Handle :=
         Coyote_Image_Decoder.Null_Pixbuf;
+      Original : Source;
    begin
       Pixbuf := Gdk.Pixbuf.Null_Pixbuf;
-      Load_Raw (Root, Destination, Width, Raw, Error);
+      Load_Raw (Root, Destination, Width, Raw, Error, Original);
       if Length (Error) = 0 then
          Pixbuf := Coyote_Image_Decoder.Adopt (Raw);
       end if;

@@ -9,6 +9,7 @@ with Ada.Streams.Stream_IO;
 with Coyote_Image_Jobs;
 with Coyote_Temp_Files;
 with GNAT.OS_Lib;
+with Coyote_Image_Loader;
 with Gdk.Pixbuf;
 with Glib;
 with Glib.Error;
@@ -36,12 +37,16 @@ package body Coyote_Image_Jobs_Tests is
    end record;
 
    overriding procedure Completed
-     (Target : in out Probe; Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf; Error : String);
+     (Target : in out Probe; Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf; Error : String;
+      Original : Coyote_Image_Loader.Source);
 
    overriding procedure Completed
-     (Target : in out Probe; Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf; Error : String)
+     (Target : in out Probe; Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf; Error : String;
+      Original : Coyote_Image_Loader.Source)
    is
    begin
+      Assert (Coyote_Image_Loader.Available (Original) = (Pixbuf /= null),
+              "Only successful previews carry original source metadata");
       Target.Calls := Target.Calls + 1;
       if Ada.Task_Identification.Current_Task /= Target.Caller_Task then
          Target.Wrong_Task := True;

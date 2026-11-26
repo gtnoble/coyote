@@ -14,6 +14,7 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Coyote_GUI.Rich_Text;
 with Coyote_GUI.Text_Safety;
 with Coyote_GUI.Tool_Detail_Window;
 with Glib;
@@ -63,6 +64,8 @@ package Coyote_GUI.Conversation_Stack is
    procedure Set_Tool_Image_Handler
      (C : in out Instance; Handler : Tool_Detail_Window.Image_Handler;
       Binding : Natural);
+   procedure Set_Response_Image_Handler
+     (C : in out Instance; Handler : Rich_Text.Image_Handler);
    procedure Set_Tool_Action_Handler
      (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler);
 
@@ -280,7 +283,8 @@ private
       Timer_Id            : Glib.Main.G_Source_Id := 0;
       Tool_Action_Handler : Coyote_GUI.Tool_Action_Handler;
       Tool_Image_Handler  : Tool_Detail_Window.Image_Handler;
-      Tool_Image_Binding  : Natural := 0;
+      Response_Image_Handler : Rich_Text.Image_Handler;
+      Canvas_Image_Binding  : Natural := 0;
       Selected_Tool       : Ada.Strings.Unbounded.Unbounded_String;
       Has_Exchange        : Boolean                      := False;
       Step_Open           : Boolean                      := False;

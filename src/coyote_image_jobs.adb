@@ -25,6 +25,7 @@ package body Coyote_Image_Jobs is
       Pixbuf      : Coyote_Image_Decoder.Pixbuf_Handle :=
         Coyote_Image_Decoder.Null_Pixbuf;
       Error       : Unbounded_String;
+      Original    : Coyote_Image_Loader.Source;
    end record;
 
    type Job_Array is array (Slot_Index) of Job_Record;
@@ -48,7 +49,8 @@ package body Coyote_Image_Jobs is
       procedure Finish
         (Index  : Slot_Index;
          Pixbuf : Coyote_Image_Decoder.Pixbuf_Handle;
-         Error  : String);
+         Error  : String;
+         Original : Coyote_Image_Loader.Source);
       procedure Next_Queued
         (Index : out Natural;
          Found : out Boolean);
@@ -56,7 +58,8 @@ package body Coyote_Image_Jobs is
         (Index       : Slot_Index;
          Target      : out Consumer_Access;
          Pixbuf      : out Coyote_Image_Decoder.Pixbuf_Handle;
-         Error       : out Unbounded_String);
+         Error       : out Unbounded_String;
+         Original    : out Coyote_Image_Loader.Source);
       procedure Release (Index : Slot_Index);
       function Count return Natural;
    private
@@ -82,7 +85,7 @@ package body Coyote_Image_Jobs is
                   Width       => Width,
                   Target      => Target,
                   Pixbuf      => Coyote_Image_Decoder.Null_Pixbuf,
-                  Error       => Null_Unbounded_String);
+                  Error       => Null_Unbounded_String, others => <>);
                Index := I;
                return;
             end if;
@@ -128,10 +131,12 @@ package body Coyote_Image_Jobs is
       procedure Finish
         (Index  : Slot_Index;
          Pixbuf : Coyote_Image_Decoder.Pixbuf_Handle;
-         Error  : String)
+         Error  : String;
+         Original : Coyote_Image_Loader.Source)
       is
       begin
          Items (Index).Pixbuf := Pixbuf;
+         Items (Index).Original := Original;
          Items (Index).Error  := To_Unbounded_String (Error);
          Items (Index).State  := Complete;
       end Finish;
@@ -157,12 +162,14 @@ package body Coyote_Image_Jobs is
         (Index       : Slot_Index;
          Target      : out Consumer_Access;
          Pixbuf      : out Coyote_Image_Decoder.Pixbuf_Handle;
-         Error       : out Unbounded_String)
+         Error       : out Unbounded_String;
+         Original    : out Coyote_Image_Loader.Source)
       is
       begin
          Target := Items (Index).Target;
          Pixbuf := Items (Index).Pixbuf;
          Error  := Items (Index).Error;
+         Original := Items (Index).Original;
       end Read;
 
       procedure Release (Index : Slot_Index) is
@@ -215,7 +222,8 @@ package body Coyote_Image_Jobs is
       Error : String) is
    begin
       Jobs.Finish
-        (Index, Coyote_Image_Decoder.Null_Pixbuf, Error);
+        (Index, Coyote_Image_Decoder.Null_Pixbuf, Error,
+         Coyote_Image_Loader.No_Source);
    exception
       when others =>
          Jobs.Release (Index);
@@ -231,7 +239,8 @@ package body Coyote_Image_Jobs is
    begin
       Jobs.Add (Root, Destination, Width, Target, Index);
       if Index = 0 then
-         Target.Completed (null, "image job queue is full");
+         Target.Completed (null, "image job queue is full",
+                           Coyote_Image_Loader.No_Source);
       else
          begin
             Start_Pump;
@@ -240,7 +249,8 @@ package body Coyote_Image_Jobs is
                Jobs.Release (Slot_Index (Index));
                Target.Completed
                  (null, "unable to start image job pump: "
-                  & Ada.Exceptions.Exception_Message (E));
+                  & Ada.Exceptions.Exception_Message (E),
+                  Coyote_Image_Loader.No_Source);
          end;
       end if;
    end Submit;
@@ -256,6 +266,7 @@ package body Coyote_Image_Jobs is
       Target : Consumer_Access;
       Pixbuf : Coyote_Image_Decoder.Pixbuf_Handle;
       Error  : Unbounded_String;
+      Original : Coyote_Image_Loader.Source;
    begin
       for Worker_Id in Workers'Range loop
          Jobs.Claim (Index, Found);
@@ -271,13 +282,13 @@ package body Coyote_Image_Jobs is
          Jobs.Next_Queued (Index, Found);
          exit when not Found;
          begin
-            Jobs.Read (Slot_Index (Index), Target, Pixbuf, Error);
+            Jobs.Read (Slot_Index (Index), Target, Pixbuf, Error, Original);
             declare
                Image : Gdk.Pixbuf.Gdk_Pixbuf := null;
             begin
                Image := Coyote_Image_Decoder.Adopt (Pixbuf);
                begin
-                  Target.all.Completed (Image, To_String (Error));
+                  Target.all.Completed (Image, To_String (Error), Original);
                exception
                   when E : others =>
                      Ada.Text_IO.Put_Line
@@ -321,6 +332,7 @@ package body Coyote_Image_Jobs is
       Pixbuf    : Coyote_Image_Decoder.Pixbuf_Handle :=
         Coyote_Image_Decoder.Null_Pixbuf;
       Error     : Unbounded_String;
+      Original  : Coyote_Image_Loader.Source;
    begin
       loop
          select
@@ -331,17 +343,18 @@ package body Coyote_Image_Jobs is
                Jobs.Fetch (Job_Index, Root, Dest, Width);
                Pixbuf := Coyote_Image_Decoder.Null_Pixbuf;
                Error := Null_Unbounded_String;
+               Original := Coyote_Image_Loader.No_Source;
                begin
                   Coyote_Image_Loader.Load_Raw
                     (To_String (Root), To_String (Dest), Width,
-                     Pixbuf, Error);
+                     Pixbuf, Error, Original);
                exception
                   when E : others =>
                      Coyote_Image_Decoder.Release (Pixbuf);
                      Error := To_Unbounded_String
                        (Ada.Exceptions.Exception_Message (E));
                end;
-               Jobs.Finish (Job_Index, Pixbuf, To_String (Error));
+               Jobs.Finish (Job_Index, Pixbuf, To_String (Error), Original);
             exception
                when E : others =>
                   Coyote_Image_Decoder.Release (Pixbuf);

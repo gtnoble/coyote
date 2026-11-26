@@ -24,7 +24,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    subtype File_Index is Positive range 1 .. MAX_FILES;
    type Source_Kind is
      (Bytes_Source, Base64_Source, Files_Source, Tiled_Files_Source,
-      Batch_Source);
+      Batch_Source, Original_Source);
    type Job_State is (Free, Queued, Running, Complete);
    type Stored_Path_List is array (File_Index) of Unbounded_String;
    type Raw_Pixbuf_List is
@@ -70,6 +70,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Cancelled   : Boolean := False;
       Kind        : Source_Kind := Bytes_Source;
       Data        : Unbounded_String;
+      Original    : Coyote_Image_Loader.Source;
       Paths       : Stored_Path_List := (others => Null_Unbounded_String);
       Path_Count  : Natural := 0;
       Expected    : Coyote_Canvas.Rasters.Format :=
@@ -93,7 +94,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Expected : Coyote_Canvas.Rasters.Format;
          Token    : System.Address;
          Callback : Completion;
-         Index    : out Natural);
+         Index    : out Natural;
+         Original : Coyote_Image_Loader.Source :=
+           Coyote_Image_Loader.No_Source);
       procedure Add_Files
         (Paths    : Path_List;
          Token    : System.Address;
@@ -115,7 +118,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Data     : out Unbounded_String;
          Paths    : out Stored_Path_List;
          Path_Count : out Natural;
-         Expected : out Coyote_Canvas.Rasters.Format);
+         Expected : out Coyote_Canvas.Rasters.Format;
+         Original : out Coyote_Image_Loader.Source);
       procedure Finish
         (Index  : Slot_Index;
          Pixels : Raw_Pixbuf_List;
@@ -144,7 +148,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Expected : Coyote_Canvas.Rasters.Format;
          Token    : System.Address;
          Callback : Completion;
-         Index    : out Natural)
+         Index    : out Natural;
+         Original : Coyote_Image_Loader.Source :=
+           Coyote_Image_Loader.No_Source)
       is
       begin
          Index := 0;
@@ -155,6 +161,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                   Kind        => Kind,
                   Cancelled   => False,
                   Data        => Data,
+                  Original    => Original,
                   Paths       => (others => Null_Unbounded_String),
                   Path_Count  => 0,
                   Expected    => Expected,
@@ -186,6 +193,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                Items (I) :=
                  (State       => Queued,
                   Kind        => Files_Source,
+                  Original    => Coyote_Image_Loader.No_Source,
                   Cancelled   => False,
                   Data        => Null_Unbounded_String,
                   Paths       => (others => Null_Unbounded_String),
@@ -256,7 +264,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       begin
          for Item of Items loop
             if Item.State /= Free
-              and then Item.Kind in Files_Source | Tiled_Files_Source | Base64_Source
+              and then Item.Kind in Files_Source | Tiled_Files_Source |
+                Base64_Source | Original_Source
               and then Item.Token = Token
             then
                Item.Cancelled := True;
@@ -294,7 +303,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Data       : out Unbounded_String;
          Paths      : out Stored_Path_List;
          Path_Count : out Natural;
-         Expected   : out Coyote_Canvas.Rasters.Format)
+         Expected   : out Coyote_Canvas.Rasters.Format;
+         Original   : out Coyote_Image_Loader.Source)
       is
       begin
          Kind := Items (Index).Kind;
@@ -302,6 +312,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Paths := Items (Index).Paths;
          Path_Count := Items (Index).Path_Count;
          Expected := Items (Index).Expected;
+         Original := Items (Index).Original;
       end Get;
 
       procedure Finish
@@ -668,6 +679,30 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       end if;
    end Submit_Base64;
 
+   procedure Submit_Original
+     (Original : Coyote_Image_Loader.Source;
+      Token : System.Address; Callback : Completion; Accepted : out Boolean)
+   is
+      Index : Natural;
+   begin
+      Accepted := False;
+      if not Coyote_Image_Loader.Available (Original) then
+         return;
+      end if;
+      Queue.Add_Bytes
+        (Original_Source, Null_Unbounded_String, Coyote_Canvas.Rasters.Unknown,
+         Token, Callback, Index, Original);
+      if Index /= 0 then
+         begin
+            Start_Pump;
+            Accepted := True;
+         exception
+            when others =>
+               Queue.Release (Slot_Index (Index));
+         end;
+      end if;
+   end Submit_Original;
+
    procedure Submit_Batch
      (Data     : Coyote_Canvas.Import_Service.Text_List;
       Token    : System.Address;
@@ -943,6 +978,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Paths : Stored_Path_List;
       Path_Count : Natural;
       Expected : Coyote_Canvas.Rasters.Format;
+      Original : Coyote_Image_Loader.Source;
       Raw : Raw_Pixbuf_List :=
         (others => Coyote_Image_Decoder.Null_Pixbuf);
       Tiles : Raw_Tile_List := (others => (FD => -1, Width => 0, Height => 0));
@@ -964,7 +1000,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             end Start;
             begin
                Queue.Get
-                 (Index, Kind, Data, Paths, Path_Count, Expected);
+                 (Index, Kind, Data, Paths, Path_Count, Expected, Original);
                Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
                Pixel_Count := 0;
                Tile_Count := 0;
@@ -973,7 +1009,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                SVG_Total := 0;
                Staging_Total := 0;
                Error := Null_Unbounded_String;
-               if Kind in Bytes_Source | Base64_Source then
+               if Kind in Bytes_Source | Base64_Source | Original_Source then
                   if Queue.Cancelled (Index) then
                      Error := To_Unbounded_String ("Image import cancelled.");
                   elsif Kind = Base64_Source then
@@ -981,11 +1017,18 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                        (To_String (Data), Expected, Raw (1), Width, Height,
                         Error);
                   else
-                     Coyote_Canvas.Rasters.Decode
-                       (To_String (Data), Expected, Raw (1), Width, Height,
-                        Error);
+                     if Kind = Original_Source then
+                        Coyote_Image_Loader.Read_Original (Original, Data, Error);
+                     end if;
+                     if Length (Error) = 0 and then not Queue.Cancelled (Index)
+                     then
+                        Coyote_Canvas.Rasters.Decode
+                          (To_String (Data), Expected, Raw (1), Width, Height,
+                           Error);
+                     end if;
                   end if;
-                  if Length (Error) = 0 then
+                  if Length (Error) = 0 and then not Queue.Cancelled (Index)
+                  then
                      Pixel_Count := 1;
                      Decoded_Total := Pixel_Bytes (Raw (1));
                      if Decoded_Total > MAX_BATCH_DECODED_BYTES then

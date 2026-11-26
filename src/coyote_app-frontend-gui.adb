@@ -25,6 +25,7 @@ with Gtk.Cell_Renderer;
 with Gtk.Combo_Box;
 with Gtk.Combo_Box_Text;
 with LLM.User_Images;
+with Coyote_Image_Loader;
 with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Clipboard;
@@ -312,6 +313,25 @@ package body Coyote_App.Frontend.GUI is
         (F.Canvas_Window, Parent.all'Access, Data, Media_Type);
       return True;
    end Add_Tool_Image_To_Canvas;
+
+   procedure Add_Response_Image_To_Canvas
+     (Parent : Gtk.Window.Gtk_Window; Binding : Natural;
+      Original : Coyote_Image_Loader.Source)
+   is
+      F : constant access Instance := Current_Frontend;
+   begin
+      if F /= null and then Parent /= null and then F.Win = Parent then
+         if F.Canvas_Transition or else Binding /= F.Canvas_Binding
+           or else not F.Canvas_Item.Get_Sensitive
+         then
+            F.Status_Bar.Set_Text
+              ("This response image cannot be added to the current Canvas.");
+         else
+            Coyote_GUI.Canvas.Import_Response_Image
+              (F.Canvas_Window, Parent.all'Access, Original);
+         end if;
+      end if;
+   end Add_Response_Image_To_Canvas;
 
    procedure Advance_Canvas_Binding (F : in out Instance) is
    begin
@@ -5210,6 +5230,7 @@ package body Coyote_App.Frontend.GUI is
       end;
       Coyote_GUI.Conversation_Stack.Create (F.Stack, F.Win.all'Access);
       Advance_Canvas_Binding (F);
+      F.Stack.Set_Response_Image_Handler (Add_Response_Image_To_Canvas'Access);
       Coyote_GUI.Conversation_Stack.Set_Fork_Handler
         (F.Stack, On_Native_Fork'Access);
       Coyote_GUI.Conversation_Stack.Set_Tool_Action_Handler

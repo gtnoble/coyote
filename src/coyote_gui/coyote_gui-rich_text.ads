@@ -3,9 +3,15 @@
 --  Project: coyote
 
 with Coyote_Renderer.Markup;
+with Coyote_Image_Loader;
+with Gtk.Window;
 with Gtk.Text_View;
 
 package Coyote_GUI.Rich_Text is
+
+   type Image_Handler is access procedure
+     (Parent : Gtk.Window.Gtk_Window; Binding : Natural;
+      Original : Coyote_Image_Loader.Source);
 
    --  Insert markup with link tags and local images. Image alt text remains
    --  in the text buffer for search and copy; image widgets are added before
@@ -22,7 +28,9 @@ package Coyote_GUI.Rich_Text is
       Source_Directory : String;
       Images_Remaining : in out Natural;
       Clear            : Boolean := False;
-      Math_Scale       : Long_Float := 1.0);
+      Math_Scale       : Long_Float := 1.0;
+      On_Add_Image     : Image_Handler := null;
+      Binding          : Natural := 0);
 
    --  Re-render valid inline formulas at the requested scale.
    procedure Reflow

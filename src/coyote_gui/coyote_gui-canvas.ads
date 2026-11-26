@@ -9,6 +9,7 @@ with Coyote_Canvas.Composite;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions;
 with Coyote_Canvas.Rasters;
+with Coyote_Image_Loader;
 with Cairo;
 with Gdk.Event;
 with Gdk.Seat;
@@ -51,6 +52,12 @@ package Coyote_GUI.Canvas is
       Data : Ada.Strings.Unbounded.Unbounded_String;
       Media_Type : String);
 
+   --  Reread a successfully rendered response image at its original size.
+   procedure Import_Response_Image
+     (S : aliased in out Instance;
+      Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Original : Coyote_Image_Loader.Source);
+
    type Attach_Handler is access function
      (Images : LLM.Types.User_Images.Vector) return Boolean;
    procedure Set_Attach_Handler (S : in out Instance; Handler : Attach_Handler);
@@ -78,7 +85,15 @@ private
        of Gtk.Tree_Model.Gtk_Tree_Iter;
 
    type Image_Origin is
-     (Blank, Clipboard_Image, File_Image, Agent_Image, Tool_Image);
+     (Blank, Clipboard_Image, File_Image, Agent_Image, Tool_Image,
+      Response_Image);
+   subtype Conversation_Origin is Image_Origin range Tool_Image .. Response_Image;
+   type Conversation_Import is record
+      Origin : Image_Origin := Blank;
+      Base64 : Ada.Strings.Unbounded.Unbounded_String;
+      Format : Coyote_Canvas.Rasters.Format := Coyote_Canvas.Rasters.Unknown;
+      Source : Coyote_Image_Loader.Source;
+   end record;
    type Image_Asset is record
       Pixels : Gdk.Pixbuf.Gdk_Pixbuf := null;
       Origin : Image_Origin := Blank;
@@ -142,9 +157,7 @@ private
       Import_Timer : Glib.Main.G_Source_Id := 0;
       Import_Count : Natural := 0;
       Local_Commit : Image_Origin := Blank;
-      Pending_Tool_Data : Ada.Strings.Unbounded.Unbounded_String;
-      Pending_Tool_Format : Coyote_Canvas.Rasters.Format :=
-        Coyote_Canvas.Rasters.Unknown;
+      Pending_Image : Conversation_Import;
       Attach_Item : Gtk.Menu_Item.Gtk_Menu_Item;
       Attach_Button : Gtk.Button.Gtk_Button := null;
       Attach_From_Drawing : Boolean := False;

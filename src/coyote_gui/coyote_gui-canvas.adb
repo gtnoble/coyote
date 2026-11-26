@@ -136,7 +136,7 @@ package body Coyote_GUI.Canvas is
            and then (not Paste_Only or else R.Origin = Clipboard_Image)
            and then (not Keep_Agent or else R.Origin /= Agent_Image)
          then
-            if R.Origin in File_Image | Tool_Image then
+            if R.Origin in File_Image | Conversation_Origin then
                Jobs.Cancel_Input (R'Address);
             end if;
             R.Owner := null;
@@ -144,10 +144,13 @@ package body Coyote_GUI.Canvas is
       end loop;
    end Invalidate;
 
-   function Tool_Decode_Pending (S : Instance) return Boolean is
+   function Conversation_Decode_Pending (S : Instance) return Boolean is
      (for some R of Requests =>
         R.Owner /= null and then R.Owner.all'Address = S'Address
-        and then R.Origin = Tool_Image);
+        and then R.Origin in Conversation_Origin);
+
+   function Image_Label (Origin : Conversation_Origin) return String is
+     (if Origin = Tool_Image then "Tool Image" else "Response Image");
 
    function Acquire (S : Instance_Access; Origin : Image_Origin)
       return Request_Index is
@@ -602,7 +605,7 @@ package body Coyote_GUI.Canvas is
                 else (case S.Images (Id).Origin is
                       when Clipboard_Image => "Clipboard Image",
                       when File_Image | Agent_Image => "Imported Image",
-                      when Tool_Image => "Tool Image",
+                      when Conversation_Origin => Image_Label (S.Images (Id).Origin),
                       when Blank => "Blank Drawing") & Natural'Image (Id)
                   & " (Original)"));
             S.Store.Set (S.Rows (Id), 1, Glib.Gint (Id));
@@ -786,7 +789,7 @@ package body Coyote_GUI.Canvas is
       end if;
       S := Requests (I).Owner;
       Origin := Requests (I).Origin;
-      if S /= null and then Origin = Tool_Image and then Length (S.Parent) /= 0
+      if S /= null and then Origin in Conversation_Origin and then Length (S.Parent) /= 0
       then
          Durable_Import_Complete
            (Token, Pixels, (Pixels'Range => (others => <>)), Error);
@@ -801,7 +804,7 @@ package body Coyote_GUI.Canvas is
       elsif S.Suspended then
          return;
       elsif not Can_Edit (S.all) then
-         if Origin = Tool_Image then
+         if Origin in Conversation_Origin then
             Report_Import_Error (S, "Canvas is busy or read-only.");
          end if;
          return;
@@ -837,8 +840,9 @@ package body Coyote_GUI.Canvas is
             Id : constant Rev.Revision_Id := First + (J - Pixels'First);
          begin
             S.Images (Id).Origin := Origin;
-            if Origin = Tool_Image then
-               Rev.Set_Original_Label (S.Document, Id, "Tool Image" & Id'Image);
+            if Origin in Conversation_Origin then
+               Rev.Set_Original_Label
+                 (S.Document, Id, Image_Label (Origin) & Id'Image);
             end if;
             if Length (S.Parent) = 0 then
                Pixels (J).Ref;
@@ -885,7 +889,7 @@ package body Coyote_GUI.Canvas is
          return;
       end if;
       Origin := Requests (I).Origin;
-      if Origin /= Tool_Image and then (for all T of Tiles => T.FD < 0) then
+      if Origin not in Conversation_Origin and then (for all T of Tiles => T.FD < 0) then
          Import_Complete (Token, Pixels, Error);
          return;
       end if;
@@ -894,7 +898,7 @@ package body Coyote_GUI.Canvas is
       if S = null or else Length (S.Parent) = 0 or else S.Suspended then
          return;
       elsif not Can_Edit (S.all) then
-         if Origin = Tool_Image then
+         if Origin in Conversation_Origin then
             Report_Import_Error (S, "Canvas is busy or read-only.");
          end if;
          return;
@@ -902,7 +906,7 @@ package body Coyote_GUI.Canvas is
          Report_Import_Error (S, Error);
          return;
       elsif S.Job /= null or else S.Drawing or else S.Crop_Drag
-        or else (Origin /= Tool_Image and then Cropping (S.all))
+        or else (Origin not in Conversation_Origin and then Cropping (S.all))
       then
          Report_Import_Error (S, "Canvas is busy. Try importing again.");
          return;
@@ -929,8 +933,9 @@ package body Coyote_GUI.Canvas is
             Id : constant Rev.Revision_Id := First + J - Pixels'First;
          begin
             Stages (Id) := Tiles (J).FD;
-            if Origin = Tool_Image then
-               Rev.Set_Original_Label (Candidate, Id, "Tool Image" & Id'Image);
+            if Origin in Conversation_Origin then
+               Rev.Set_Original_Label
+                 (Candidate, Id, Image_Label (Origin) & Id'Image);
             end if;
             if Tiles (J).FD < 0 then
                Assets (Id) := Packed (Pixels (J));
@@ -1876,12 +1881,12 @@ package body Coyote_GUI.Canvas is
 
    package Recovery_Timer is new Glib.Main.Generic_Sources (Instance_Access);
 
-   procedure Start_Tool_Import (S : Instance_Access) is
+   procedure Start_Conversation_Import (S : Instance_Access) is
       I : Request_Index := 0;
-      Data : constant Unbounded_String := S.Pending_Tool_Data;
+      Pending : constant Conversation_Import := S.Pending_Image;
       Accepted : Boolean := False;
    begin
-      S.Pending_Tool_Data := Null_Unbounded_String;
+      S.Pending_Image := (others => <>);
       if S.Suspended then
          return;
       elsif S.Job /= null or else S.Drawing or else S.Crop_Drag then
@@ -1891,15 +1896,21 @@ package body Coyote_GUI.Canvas is
          Report_Import_Error (S, "This Canvas is read-only.");
          return;
       end if;
-      I := Acquire (S, Tool_Image);
+      I := Acquire (S, Pending.Origin);
       if I = 0 then
          Report_Import_Error (S, "Too many pending image requests.");
       else
-         Jobs.Submit_Base64
-           (Data, S.Pending_Tool_Format, Requests (I)'Address,
-            Import_Complete'Access, Accepted);
+         if Pending.Origin = Tool_Image then
+            Jobs.Submit_Base64
+              (Pending.Base64, Pending.Format, Requests (I)'Address,
+               Import_Complete'Access, Accepted);
+         else
+            Jobs.Submit_Original
+              (Pending.Source, Requests (I)'Address,
+               Import_Complete'Access, Accepted);
+         end if;
          if Accepted then
-            Set_Status (S.all, "Reading tool image...");
+            Set_Status (S.all, "Reading " & Image_Label (Pending.Origin) & "...");
          else
             Requests (I) := (others => <>);
             Report_Import_Error (S, "Image import queue is full.");
@@ -1910,8 +1921,8 @@ package body Coyote_GUI.Canvas is
          if I /= 0 and then not Accepted then
             Requests (I) := (others => <>);
          end if;
-         Report_Import_Error (S, "Could not queue the tool image.");
-   end Start_Tool_Import;
+         Report_Import_Error (S, "Could not queue the image import.");
+   end Start_Conversation_Import;
 
    procedure Finish_Job (S : in out Instance) is
       Status, Claim_Status : Persistence.Result;
@@ -1933,7 +1944,7 @@ package body Coyote_GUI.Canvas is
                end loop;
                Set_Status (S, (if Status /= Persistence.Ok then
                  "Import is visible, but durability is uncertain."
-                 elsif S.Local_Commit = Tool_Image then
+                 elsif S.Local_Commit in Conversation_Origin then
                  "Image added to Drawings at its original size."
                  else "Images added to Drawings at their original sizes."));
             else
@@ -2011,13 +2022,13 @@ package body Coyote_GUI.Canvas is
    begin
       if Recovery_Jobs.Ready (S.Job) then
          Finish_Job (S.all);
-         if Length (S.Pending_Tool_Data) > 0 then
-            Start_Tool_Import (S);
+         if S.Pending_Image.Origin /= Blank then
+            Start_Conversation_Import (S);
          end if;
       end if;
       if S.Job = null and then S.Writable and then S.Pending_Save
         and then not S.Save_Failed and then not S.Suspended
-        and then not Tool_Decode_Pending (S.all)
+        and then not Conversation_Decode_Pending (S.all)
         and then Ada.Real_Time.Clock >= S.Save_After
       then
          Start_Save (S.all);
@@ -2149,7 +2160,7 @@ package body Coyote_GUI.Canvas is
    begin
       S.Suspended := Value;
       if Value then
-         S.Pending_Tool_Data := Null_Unbounded_String;
+         S.Pending_Image := (others => <>);
          for R of Requests loop
             if R.Owner /= null and then R.Owner.all'Address = S'Address
               and then R.Origin = Agent_Image
@@ -2199,6 +2210,22 @@ package body Coyote_GUI.Canvas is
       Refresh (S);
    end Show;
 
+   procedure Queue_Conversation_Import
+     (S : aliased in out Instance; Pending : Conversation_Import)
+   is
+      Owner : constant Instance_Access := S'Unchecked_Access;
+   begin
+      if S.Pending_Image.Origin /= Blank or else Conversation_Decode_Pending (S)
+      then
+         Report_Import_Error (Owner, "A conversation image import is pending.");
+      else
+         S.Pending_Image := Pending;
+         if not S.Loading then
+            Start_Conversation_Import (Owner);
+         end if;
+      end if;
+   end Queue_Conversation_Import;
+
    procedure Import_Tool_Image
      (S : aliased in out Instance;
       Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
@@ -2217,17 +2244,25 @@ package body Coyote_GUI.Canvas is
          Report_Import_Error (Owner, "Tool image exceeds 8 MiB.");
       elsif Length (Data) < 4 then
          Report_Import_Error (Owner, "Tool image contains invalid base64 data.");
-      elsif Length (S.Pending_Tool_Data) > 0 or else Tool_Decode_Pending (S)
-      then
-         Report_Import_Error (Owner, "A tool image import is already pending.");
       else
-         S.Pending_Tool_Data := Data;
-         S.Pending_Tool_Format := Expected;
-         if not S.Loading then
-            Start_Tool_Import (Owner);
-         end if;
+         Queue_Conversation_Import
+           (S, (Origin => Tool_Image, Base64 => Data, Format => Expected,
+                others => <>));
       end if;
    end Import_Tool_Image;
+
+   procedure Import_Response_Image
+     (S : aliased in out Instance;
+      Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Original : Coyote_Image_Loader.Source)
+   is
+   begin
+      if not S.Suspended and then Coyote_Image_Loader.Available (Original) then
+         Show (S, Parent);
+         Queue_Conversation_Import
+           (S, (Origin => Response_Image, Source => Original, others => <>));
+      end if;
+   end Import_Response_Image;
 
    procedure Set_Attach_Handler (S : in out Instance; Handler : Attach_Handler) is
    begin
@@ -2304,7 +2339,7 @@ package body Coyote_GUI.Canvas is
       Disarm_Pan (S, Contact_Ended => True);
       Disable_Click_Help (S);
       S.Resetting := True;
-      S.Pending_Tool_Data := Null_Unbounded_String;
+      S.Pending_Image := (others => <>);
       S.Reveal_Drawing := Null_Unbounded_String;
       S.Reveal_Revision := Null_Unbounded_String;
       if S.Publication /= null then
@@ -2667,7 +2702,7 @@ package body Coyote_GUI.Canvas is
          Disarm_Pan (S.all, Contact_Ended => True);
          Cancel_Gesture (S.all);
          Refresh (S.all);
-         S.Pending_Tool_Data := Null_Unbounded_String;
+         S.Pending_Image := (others => <>);
          Invalidate (S.all, Keep_Agent => True);
          Destroy_Import_Dialogs (S.all);
          Clear_Display (S.all);

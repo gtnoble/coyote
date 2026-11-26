@@ -9,6 +9,7 @@
 --  execute concurrently. Workers are Ada tasks; no GTK widgets are accessed
 --  by them. The GLib timer is started only on the first Submit and stops when
 --  all requests have completed. Submit must run on the GTK main task.
+with Coyote_Image_Loader;
 with Gdk.Pixbuf;
 
 package Coyote_Image_Jobs is
@@ -20,7 +21,8 @@ package Coyote_Image_Jobs is
    procedure Completed
      (Target : in out Consumer;
       Pixbuf :        Gdk.Pixbuf.Gdk_Pixbuf;
-      Error  :        String) is abstract;
+      Error  :        String;
+      Original :      Coyote_Image_Loader.Source) is abstract;
 
    type Consumer_Access is access all Consumer'Class;
 

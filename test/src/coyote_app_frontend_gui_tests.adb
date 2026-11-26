@@ -29,6 +29,7 @@ with Coyote_App.Frontend.GUI.Testing;
 with Coyote_GUI;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Canvas_Import_Jobs;
+with Coyote_Image_Jobs;
 with Glib.Error;
 with Gtk.File_Chooser_Dialog;
 with Coyote_Process_Control;
@@ -75,6 +76,7 @@ with Gtk.Image;
 with Gtk.Icon_Theme;
 with Gtk.Main;
 with Gtk.Label;
+with Gtk.Menu;
 with Gtk.Menu_Item;
 with Gtk.Progress_Bar;
 with Gtk.Scrolled_Window;
@@ -2109,6 +2111,246 @@ package body Coyote_App_Frontend_GUI_Tests is
          delay 0.01;
       end loop Poll;
    end Finish_Canvas_Jobs;
+
+   procedure Test_Canvas_Response_Image (T : in out Test) is
+      use Ada.Real_Time;
+      use Ada.Strings.Unbounded;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use Gtk.Widget.Widget_List;
+      use type Coyote_Canvas.Store.Result;
+      use type Coyote_Canvas.Document.Rectangle;
+      use type Gdk.Pixbuf.Gdk_Pixbuf;
+      use type Glib.Error.GError;
+      use type System.Address;
+      use type Gdk.Gdk_Window;
+      package Disk renames Coyote_Canvas.Store.Workspaces;
+      package Rev renames Coyote_Canvas.Revisions;
+      package Store renames Coyote_Canvas.Store;
+      Pattern : String := "/tmp/coyote-response-image-XXXXXX" & ASCII.NUL;
+      ID : constant String := "12345678-0123-4567-89ab-0123456789ab";
+      Root, Path, Session_File : Unbounded_String;
+      F : Coyote_App.Frontend.GUI.Instance;
+      Canvas, Win : Gtk.Window.Gtk_Window;
+      Picture, Actions, Failed : Gtk.Widget.Gtk_Widget;
+      Popup : Gtk.Menu.Gtk_Menu;
+      Menu_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      Tree : Gtk.Tree_View.Gtk_Tree_View;
+      Model : Gtk_Tree_Model;
+      Saved : Rev.Workspace;
+      Assets : Disk.Raster_Set;
+      Status : Store.Result;
+      function Make_Temp_Dir (Path : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+
+      procedure Write_Image (Color : Glib.Guint32) is
+         Pixbuf : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New (Has_Alpha => True, Width => 720, Height => 20);
+         Error : Glib.Error.GError;
+      begin
+         Gdk.Pixbuf.Fill (Pixbuf, Color);
+         Gdk.Pixbuf.Save (Pixbuf, To_String (Path), Gdk.Pixbuf.PNG, Error);
+         Pixbuf.Unref;
+         Assert (Error = null, "Write original response PNG");
+      end Write_Image;
+
+      procedure Wait_For_Import is
+         Deadline : constant Time := Clock + Seconds (5);
+      begin
+         loop
+            Drain_Events;
+            exit when N_Children (Model) = 1;
+            Assert (Clock < Deadline, "Response image was not adopted");
+            delay 0.01;
+         end loop;
+      end Wait_For_Import;
+
+      procedure Right_Click is
+         Seat : constant Gdk.Seat.Gdk_Seat := Gdk.Seat.Gdk_Seat
+           (Actions.Get_Display.Get_Default_Seat);
+         Pointer : constant Gdk.Device.Gdk_Device := Seat.Get_Pointer;
+         function New_Event (Kind : Gdk.Event.Gdk_Event_Type)
+           return Gdk.Event.Gdk_Event
+           with Import, Convention => C, External_Name => "gdk_event_new";
+         Event : constant Gdk.Event.Gdk_Event := New_Event (Gdk.Event.Button_Press);
+         Raw : Gdk.Event.Gdk_Event_Button
+           with Import, Address => Gdk.Event.To_Address (Event);
+         use Gdk.Window.Gdk_Window_List;
+         Children : Gdk.Window.Gdk_Window_List.Glist :=
+           Gdk.Window.Get_Children (Actions.Get_Window);
+         Node : Gdk.Window.Gdk_Window_List.Glist := First (Children);
+         Target : Gdk.Gdk_Window := null;
+         X, Y : Glib.Gint;
+      begin
+         Find_Event_Window : while Node /= Gdk.Window.Gdk_Window_List.Null_List loop
+            if Gdk.Window.Get_User_Data (Get_Data (Node)) =
+              Glib.Object.GObject (Actions)
+            then
+               Target := Get_Data (Node);
+               exit Find_Event_Window;
+            end if;
+            Node := Next (Node);
+         end loop Find_Event_Window;
+         Free (Children);
+         Assert (Target /= null, "Image has a native input window");
+         Gdk.Window.Get_Origin (Target, X, Y);
+         Gdk.Window.Ref (Target);
+         Raw := (The_Type => Gdk.Event.Button_Press,
+                 Window => Target, Send_Event => 1, Time => 0,
+                 X => 2.0, Y => 2.0,
+                 X_Root => Glib.Gdouble (X) + 2.0,
+                 Y_Root => Glib.Gdouble (Y) + 2.0,
+                 Axes => null, State => 0, Button => 3,
+                 Device => Pointer.Get_Object);
+         Gdk.Device.Set_Device (Event, Pointer);
+         Gtk.Main.Main_Do_Event (Event);
+         Gdk.Event.Free (Event);
+         Assert (Popup.Get_Mapped,
+                 "GTK routes right click to the image context menu");
+      end Right_Click;
+
+      procedure Keyboard_Menu is
+         Seat : constant Gdk.Seat.Gdk_Seat := Gdk.Seat.Gdk_Seat
+           (Actions.Get_Display.Get_Default_Seat);
+         function New_Event (Kind : Gdk.Event.Gdk_Event_Type)
+           return Gdk.Event.Gdk_Event
+           with Import, Convention => C, External_Name => "gdk_event_new";
+         Event : constant Gdk.Event.Gdk_Event := New_Event (Gdk.Event.Key_Press);
+         Raw : Gdk.Event.Gdk_Event_Key
+           with Import, Address => Gdk.Event.To_Address (Event);
+      begin
+         Actions.Grab_Focus;
+         Assert (Win.Get_Focus = Actions, "Image can take keyboard focus");
+         Gdk.Window.Ref (Win.Get_Window);
+         Raw := (The_Type => Gdk.Event.Key_Press, Window => Win.Get_Window,
+                 Send_Event => 1, Time => 0, State => 0,
+                 Keyval => Gdk.Types.Keysyms.GDK_Menu,
+                 Length => 0, String => Gtkada.Types.Null_Ptr,
+                 Hardware_Keycode => 0, Group => 0, Is_Modifier => 0);
+         Gdk.Device.Set_Device (Event, Seat.Get_Keyboard);
+         Gtk.Main.Main_Do_Event (Event);
+         Gdk.Event.Free (Event);
+         Assert (Popup.Get_Mapped, "Menu key opens the image context menu");
+         Popup.Popdown;
+      end Keyboard_Menu;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Assert (Make_Temp_Dir (Pattern'Address) /= System.Null_Address,
+              "Create isolated session directory");
+      Root := To_Unbounded_String (Pattern (1 .. Pattern'Last - 1));
+      Path := Root & "/a picture.png";
+      Session_File := Root & "/" & ID & ".jsonl";
+      declare
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, To_String (Session_File));
+         Ada.Text_IO.Close (File);
+      end;
+      Write_Image (16#2468ACFF#);
+      F.Create ("Canvas response image test", Pop_Under => True);
+      Win := Main_Window (F);
+      Win.Show;
+      F.Set_Session_Identity (ID, To_String (Root), To_String (Session_File));
+      F.Set_Source_Directory (To_String (Root));
+      F.Begin_Request ("Show a picture");
+      F.Append_Text ("![Preview](a%20picture.png)");
+      F.End_Text_Block;
+      declare
+         Deadline : constant Time := Clock + Seconds (5);
+      begin
+         loop
+            Drain_Events;
+            Picture := Find_Canvas_Widget
+              (Gtk.Widget.Gtk_Widget (Win), "coyote-response-image");
+            exit when Picture /= null and then Coyote_Image_Jobs.Pending_Count = 0;
+            Assert (Clock < Deadline, "Inline image did not load");
+            delay 0.01;
+         end loop;
+      end;
+      declare
+         Preview : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gtk.Image.Get (Gtk.Image.Gtk_Image (Picture));
+      begin
+         Assert (Preview /= null and then Gdk.Pixbuf.Get_Width (Preview) < 720,
+                 "Inline thumbnail is smaller than the source");
+      end;
+      Actions := Picture.Get_Parent;
+      Assert (Actions.Get_Name = "coyote-response-image-actions"
+              and then Actions.Get_Can_Focus,
+              "Loaded image has keyboard-accessible actions");
+      Popup := Gtk.Menu.Gtk_Menu
+        (Get_Data (First (Gtk.Menu.Get_For_Attach_Widget (Actions))));
+      Menu_Item := Gtk.Menu_Item.Gtk_Menu_Item (Find_Canvas_Widget
+        (Gtk.Widget.Gtk_Widget (Popup), "response-image-add-to-canvas"));
+      Keyboard_Menu;
+      Right_Click;
+      Menu_Item.Activate;
+      Popup.Popdown;
+      Canvas := Canvas_Window (F);
+      Assert (Canvas /= null and then Canvas.Get_Visible, "Import opens Canvas");
+      Tree := Gtk.Tree_View.Gtk_Tree_View (Find_Canvas_Widget
+        (Gtk.Widget.Gtk_Widget (Canvas), "coyote-canvas-drawings"));
+      Model := Tree.Get_Model;
+      Wait_For_Import;
+      Disk.Load (To_String (Root), ID, Saved, Assets, Status);
+      Assert (Status = Store.Ok and then Rev.Count (Saved) = 1
+              and then Rev.Extent (Saved, 1) = (0, 0, 720, 20)
+              and then Rev.Original_Label (Saved, 1) = "Response Image 1",
+              "Canvas publishes a native-size Original");
+      Assert (Length (Assets (1)) = 720 * 20 * 4 and then
+              Slice (Assets (1), 1, 4) = Character'Val (16#24#) & Character'Val (16#68#) &
+                Character'Val (16#AC#) & Character'Val (255),
+              "Saved Original keeps the exact source pixel");
+      Assert (Tree.Get_Selection.Count_Selected_Rows = 0
+              and then Attachment_Count (F) = 0,
+              "Import neither selects nor attaches the result");
+      Write_Image (16#CCAAEEFF#);
+      Menu_Item.Activate;
+      Finish_Canvas_Jobs;
+      Failed := Gtk.Widget.Gtk_Widget
+        (Canvas_Toplevel ("coyote-canvas-import-error"));
+      Assert (Failed /= null and then N_Children (Model) = 1,
+              "Replaced source is rejected with feedback");
+      Gtk.Dialog.Gtk_Dialog (Failed).Response (Gtk.Dialog.Gtk_Response_Close);
+      Ada.Directories.Delete_File (To_String (Path));
+      Menu_Item.Activate;
+      Finish_Canvas_Jobs;
+      Assert (Canvas_Toplevel ("coyote-canvas-import-error") /= null
+              and then N_Children (Model) = 1,
+              "Deleted source is rejected without replacing the stored image");
+      Gtk.Dialog.Gtk_Dialog
+        (Canvas_Toplevel ("coyote-canvas-import-error")).Response
+          (Gtk.Dialog.Gtk_Response_Close);
+      Write_Image (16#2468ACFF#);
+      Menu_Item.Activate;
+      Reset_Agents_From_Task (F);
+      F.Set_Session_Identity ("12345678-0123-4567-89ab-0123456789ac");
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 0
+              and then Find_Canvas_Widget
+                (Gtk.Widget.Gtk_Widget (Win), "coyote-response-image") = null,
+              "Reset removes the image menu and cancels pending adoption");
+      Ada.Directories.Delete_File (To_String (Path));
+      F.Request_Shutdown;
+      Win.Destroy;
+      Disk.Load (To_String (Root), ID, Saved, Assets, Status);
+      Assert (Status = Store.Ok and then Rev.Count (Saved) = 1
+              and then Length (Assets (1)) = 720 * 20 * 4,
+              "Original remains readable without the source file");
+      Ada.Directories.Delete_Tree (To_String (Root));
+   exception
+      when others =>
+         if Main_Window (F) /= null then
+            F.Request_Shutdown;
+            Main_Window (F).Destroy;
+         end if;
+         if Length (Root) > 0 then
+            Ada.Directories.Delete_Tree (To_String (Root));
+         end if;
+         raise;
+   end Test_Canvas_Response_Image;
 
    procedure Test_Canvas_Tool_Image (T : in out Test) is
       use Ada.Real_Time;
@@ -4410,6 +4652,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas finger drawing",
             Test_Canvas_Finger_Drawing'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas response image import",
+            Test_Canvas_Response_Image'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas tool image import", Test_Canvas_Tool_Image'Access));

@@ -1,5 +1,19 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Add rendered response images to Canvas (PCR-141)
+
+A loaded local PNG or JPEG in an assistant response offers **Add to Canvas**
+through its context menu. The preview worker records a rooted source
+reference and SHA-256 digest. The Canvas worker verifies a bounded reread
+and decodes the verified bytes at native size. The action does not use the
+thumbnail, fetch remote data, change the draft, or attach or send anything.
+
+Both development builds, display-backed AUnit (1,138/1,138), GTK
+interactions (9/9), interaction-runner fault handling, and Help checks
+passed. The new GTK case verifies right-click and Menu-key dispatch, exact
+native pixels, durable recovery without the source, failure on changed or
+missing files, and pending import cancellation on session reset.
+
 ## 2026-11-22 — Add tool-result images to Canvas (PCR-140)
 
 Tool Call Details offers **Add to Canvas** for successful, captured PNG

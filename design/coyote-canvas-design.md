@@ -61,6 +61,26 @@ memory-only Canvas keeps the pixels in memory. Errors leave existing
 work intact; a post-publication durability uncertainty is reported
 separately from a rejected commit.
 
+### Importing a rendered assistant response image (PCR-141)
+
+A successfully decoded local PNG/JPEG preview has its own native context
+menu with **Add to Canvas**, also available via the keyboard. Text,
+links, math, placeholders, and alt-text fallback keep their existing
+interactions. The widget retains only the rooted source reference and a
+SHA-256 digest of the encoded preview input. No image bytes or open file
+descriptors are retained for the menu.
+
+On activation the frontend checks the originating window and Canvas
+binding. The Canvas worker uses the same bounded directory-restricted
+reader as the preview loader and checks the digest. It decodes that
+verified snapshot, without reopening the path or using the pixbuf from
+the response. Missing, changed, and disallowed sources fail without
+adding a drawing. The action shares the conversation-image queue and
+Canvas publication/adoption path with the tool-result action. Closing or
+resetting Canvas invalidates queued work before adoption; a durable
+Original is independent of the local source once published. Existing
+inline image limits and replay source-directory rules are unchanged.
+
 ## 4. Canvas window and interactions
 
 ### 4.1 Window, selection and edit routing

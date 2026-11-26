@@ -13,13 +13,21 @@ with Coyote_Math_Jobs;
 with Math_Layout;
 with Math_Syntax;
 with Coyote_Image_Jobs;
+with Gdk.Event;
 with Gdk.Pixbuf;
+with Gdk.Window;
 with Gdk.RGBA;
+with Gdk.Types.Keysyms;
 with Glib;
 with Glib.Object;
 with Glib.Properties;
 with Glib.Main;
+with Gtk.Accel_Group;
+with Gtk.Event_Box;
 with Gtk.Image;
+with Gtk.Main;
+with Gtk.Menu;
+with Gtk.Menu_Item;
 with Gtk.Widget;
 with Gtk.Enums;
 with Gtk.Style_Context;
@@ -37,6 +45,11 @@ with Gtk.Handlers;
 package body Coyote_GUI.Rich_Text is
 
    use type Gtk.Image.Gtk_Image;
+   use type Gtk.Event_Box.Gtk_Event_Box;
+   use type Gtk.Widget.Gtk_Widget;
+   use type Gdk.Event.Gdk_Event;
+   use type Gdk.Event.Gdk_Event_Mask;
+   use type Gtk.Menu.Gtk_Menu;
    use type Glib.Gint;
    use type Glib.Main.G_Source_Id;
    use type Coyote_Math_Jobs.Request_Id;
@@ -131,6 +144,9 @@ package body Coyote_GUI.Rich_Text is
 
    type Job is new Coyote_Image_Jobs.Consumer with record
       Image   : Gtk.Image.Gtk_Image;
+      Actions : Gtk.Event_Box.Gtk_Event_Box;
+      Handler : Image_Handler;
+      Binding : Natural;
       Tooltip : Unbounded_String;
       Alive   : Boolean := True;
       Pending : Boolean := True;
@@ -139,7 +155,8 @@ package body Coyote_GUI.Rich_Text is
    overriding procedure Completed
      (Target : in out Job;
       Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf;
-      Error  : String);
+      Error  : String;
+      Original : Coyote_Image_Loader.Source);
 
    procedure Free is new Ada.Unchecked_Deallocation (Job, Job_Access);
 
@@ -206,6 +223,7 @@ package body Coyote_GUI.Rich_Text is
       end if;
       Data.Alive := False;
       Data.Image := null;
+      Data.Actions := null;
       if not Data.Pending then
          Release (Data);
       end if;
@@ -214,10 +232,128 @@ package body Coyote_GUI.Rich_Text is
          null;
    end On_Destroy;
 
+   type Menu_Action is record
+      Handler : Image_Handler;
+      Binding : Natural;
+      Original : Coyote_Image_Loader.Source;
+   end record;
+
+   package Image_Action_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Menu_Item.Gtk_Menu_Item_Record, Menu_Action);
+
+   procedure Add_To_Canvas
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class;
+      Action : Menu_Action)
+   is
+      Menu : constant Gtk.Widget.Gtk_Widget := Item.Get_Parent;
+      Anchor, Parent : Gtk.Widget.Gtk_Widget;
+   begin
+      if Menu /= null then
+         Anchor := Gtk.Menu.Gtk_Menu (Menu).Get_Attach_Widget;
+         if Anchor /= null then
+            Parent := Anchor.Get_Toplevel;
+            if Parent /= null and then
+              Parent.all in Gtk.Window.Gtk_Window_Record'Class
+            then
+               Action.Handler.all
+                 (Gtk.Window.Gtk_Window (Parent), Action.Binding,
+                  Action.Original);
+            end if;
+         end if;
+      end if;
+   end Add_To_Canvas;
+
+   function Post_Image_Menu
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      At_Pointer : Boolean) return Boolean
+   is
+      use Gtk.Widget.Widget_List;
+      use type Gtk.Widget.Widget_List.Glist;
+      Menus : constant Glist := Gtk.Menu.Get_For_Attach_Widget (Widget);
+      Menu : Gtk.Menu.Gtk_Menu;
+      Event : Gdk.Event.Gdk_Event := null;
+   begin
+      if Menus = Null_List then
+         return False;
+      end if;
+      Menu := Gtk.Menu.Gtk_Menu (Get_Data (First (Menus)));
+      Event := Gtk.Main.Get_Current_Event;
+      if At_Pointer and then Event /= null then
+         Menu.Popup_At_Pointer (Event);
+      else
+         Menu.Popup_At_Widget
+           (Widget, Gdk.Window.Gravity_South_West,
+            Gdk.Window.Gravity_North_West, Event);
+         Menu.Select_First (Search_Sensitive => True);
+      end if;
+      if Event /= null then
+         Gdk.Event.Free (Event);
+      end if;
+      return True;
+   exception
+      when others =>
+         if Event /= null then
+            Gdk.Event.Free (Event);
+         end if;
+         return False;
+   end Post_Image_Menu;
+
+   function On_Image_Popup
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class) return Boolean is
+     (Post_Image_Menu (Widget, At_Pointer => False));
+
+   function On_Image_Button
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Button) return Boolean
+   is
+      Copy : aliased Gdk.Event.Gdk_Event_Button := Event;
+   begin
+      return Gdk.Event.Triggers_Context_Menu (Gdk.Event.To_Event (Copy'Access))
+        and then Post_Image_Menu (Widget, At_Pointer => True);
+   end On_Image_Button;
+
+   function On_Image_Key
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+   is
+      use type Gdk.Types.Gdk_Key_Type;
+      use type Gdk.Types.Gdk_Modifier_Type;
+      Modifiers : constant Gdk.Types.Gdk_Modifier_Type :=
+        Event.State and Gtk.Accel_Group.Get_Default_Mod_Mask;
+   begin
+      return
+        ((Event.Keyval = Gdk.Types.Keysyms.GDK_Menu and then Modifiers = 0)
+         or else (Event.Keyval = Gdk.Types.Keysyms.GDK_F10
+                  and then Modifiers = Gdk.Types.Shift_Mask))
+        and then On_Image_Popup (Widget);
+   end On_Image_Key;
+
+   procedure Install_Image_Menu
+     (Target : Job; Original : Coyote_Image_Loader.Source)
+   is
+      Menu : Gtk.Menu.Gtk_Menu;
+      Item : Gtk.Menu_Item.Gtk_Menu_Item;
+   begin
+      Gtk.Menu.Gtk_New (Menu);
+      Gtk.Menu_Item.Gtk_New (Item, "Add to Canvas");
+      Item.Set_Name ("response-image-add-to-canvas");
+      Menu.Append (Item);
+      Menu.Attach_To_Widget (Target.Actions, null);
+      Image_Action_Callback.Connect
+        (Item, "activate", Add_To_Canvas'Access,
+         (Target.Handler, Target.Binding, Original));
+      Item.Show;
+      Target.Actions.Set_Can_Focus (True);
+      Target.Actions.On_Button_Press_Event (On_Image_Button'Access);
+      Target.Actions.On_Popup_Menu (On_Image_Popup'Access);
+      Target.Actions.On_Key_Press_Event (On_Image_Key'Access);
+   end Install_Image_Menu;
+
    overriding procedure Completed
      (Target : in out Job;
       Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf;
-      Error  : String)
+      Error  : String;
+      Original : Coyote_Image_Loader.Source)
    is
       Data : constant Job_Access := Target'Unchecked_Access;
       use type Gdk.Pixbuf.Gdk_Pixbuf;
@@ -226,6 +362,11 @@ package body Coyote_GUI.Rich_Text is
       if Data.Alive and then Data.Image /= null then
          if Pixbuf /= null then
             Gtk.Image.Set (Data.Image, Pixbuf);
+            if Data.Handler /= null and then Coyote_Image_Loader.Available
+              (Original)
+            then
+               Install_Image_Menu (Data.all, Original);
+            end if;
          else
             Data.Image.Set_From_Icon_Name
               ("image-missing", Gtk.Enums.Icon_Size_Button);
@@ -253,11 +394,14 @@ package body Coyote_GUI.Rich_Text is
         Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       Info       : Coyote_Renderer.Markup.Image_Info;
       Anchor_Mark : Gtk.Text_Mark.Gtk_Text_Mark;
-      Root        : String)
+      Root        : String;
+      Handler     : Image_Handler;
+      Binding     : Natural)
    is
       Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
       Anchor : Gtk.Text_Child_Anchor.Gtk_Text_Child_Anchor;
       Image  : Gtk.Image.Gtk_Image := null;
+      Actions : Gtk.Event_Box.Gtk_Event_Box := null;
       Job_Data : Job_Access := null;
       Width   : Glib.Gint := View.Get_Allocated_Width;
       Submitted : Boolean := False;
@@ -274,10 +418,23 @@ package body Coyote_GUI.Rich_Text is
       Image.Set_Name ("coyote-response-image");
       Image.Set_Tooltip_Text (Tooltip (Info));
       Image.Set_No_Show_All (True);
-      View.Add_Child_At_Anchor (Image, Anchor);
+      if Handler = null then
+         View.Add_Child_At_Anchor (Image, Anchor);
+      else
+         Gtk.Event_Box.Gtk_New (Actions);
+         Actions.Set_Name ("coyote-response-image-actions");
+         Actions.Set_Visible_Window (False);
+         Actions.Add_Events (Gdk.Event.Button_Press_Mask);
+         Actions.Add (Image);
+         View.Add_Child_At_Anchor (Actions, Anchor);
+         Actions.Show;
+      end if;
       Image.Show;
       Job_Data := new Job'
         (Image   => Image,
+         Actions => Actions,
+         Handler => Handler,
+         Binding => Binding,
          Tooltip => To_Unbounded_String (Tooltip (Info)),
          Alive   => True,
          Pending => True);
@@ -299,7 +456,9 @@ package body Coyote_GUI.Rich_Text is
             if Job_Data /= null then
                Job_Data.Pending := False;
             end if;
-            if Image /= null then
+            if Actions /= null then
+               Actions.Destroy;
+            elsif Image /= null then
                Gtk.Widget.Destroy (Gtk.Widget.Gtk_Widget (Image));
             elsif Job_Data /= null then
                Release (Job_Data);
@@ -715,7 +874,9 @@ package body Coyote_GUI.Rich_Text is
       Source_Directory : String;
       Images_Remaining : in out Natural;
       Clear            : Boolean := False;
-      Math_Scale       : Long_Float := 1.0)
+      Math_Scale       : Long_Float := 1.0;
+      On_Add_Image     : Image_Handler := null;
+      Binding          : Natural := 0)
    is
       Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer := View.Get_Buffer;
       State : constant Render_State_Access := Ensure_State (View);
@@ -839,7 +1000,8 @@ package body Coyote_GUI.Rich_Text is
          end loop;
       end if;
       for Item of Images loop
-         Add_Image (View, Buffer, Item.Info, Item.Anchor, Source_Directory);
+         Add_Image (View, Buffer, Item.Info, Item.Anchor, Source_Directory,
+                    On_Add_Image, Binding);
          if Item.Anchor /= null
            and then not Gtk.Text_Mark.Get_Deleted (Item.Anchor)
          then

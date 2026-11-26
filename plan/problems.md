@@ -3,6 +3,16 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-141 — Add rendered response images to Canvas
+
+- **Date reported:** 2026-11-22
+- **Category:** Enhancement, Code, Test, Help
+- **Priority:** 4-Minor (Canvas file import remains available).
+- **Authorization:** User approved implementation of the image context menu.
+- **Change:** Add a native-size Original from a rendered local PNG or JPEG.
+  Reread through the preview loader's rooted policy and verify the original
+  checksum. Keep the existing draft, selection, and attachments unchanged.
+
 ## PCR-140 — Add tool-result images to Canvas
 
 - **Date reported:** 2026-11-22

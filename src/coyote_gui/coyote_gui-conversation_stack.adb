@@ -455,7 +455,9 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Render_Markdown then
          Coyote_GUI.Rich_Text.Insert
            (View, Rendered, To_String (C.Source_Directory),
-            C.Images_Remaining, Clear => True, Math_Scale => C.Math_Scale);
+            C.Images_Remaining, Clear => True, Math_Scale => C.Math_Scale,
+            On_Add_Image => C.Response_Image_Handler,
+            Binding => C.Canvas_Image_Binding);
       end if;
       C.Active_Text := Buffer;
       C.Active_View := View;
@@ -687,7 +689,9 @@ package body Coyote_GUI.Conversation_Stack is
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       Coyote_GUI.Rich_Text.Insert
         (C.Active_View, Rendered, To_String (C.Source_Directory),
-         C.Images_Remaining, Math_Scale => C.Math_Scale);
+         C.Images_Remaining, Math_Scale => C.Math_Scale,
+         On_Add_Image => C.Response_Image_Handler,
+         Binding => C.Canvas_Image_Binding);
    end Replace_Streamed_Text;
 
    procedure Configure_Text_View
@@ -971,8 +975,14 @@ package body Coyote_GUI.Conversation_Stack is
       Binding : Natural) is
    begin
       C.Tool_Image_Handler := Handler;
-      C.Tool_Image_Binding := Binding;
+      C.Canvas_Image_Binding := Binding;
    end Set_Tool_Image_Handler;
+
+   procedure Set_Response_Image_Handler
+     (C : in out Instance; Handler : Rich_Text.Image_Handler) is
+   begin
+      C.Response_Image_Handler := Handler;
+   end Set_Response_Image_Handler;
 
    procedure Set_Tool_Action_Handler
      (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler)
@@ -1414,7 +1424,7 @@ package body Coyote_GUI.Conversation_Stack is
          On_Detail_Clicked'Access,
         (Stack   => C'Unchecked_Access,
          Tool_Id => To_Unbounded_String (Tool_Id),
-         Binding => C.Tool_Image_Binding));
+         Binding => C.Canvas_Image_Binding));
       Gtk.Box.Gtk_New_Hbox (Action_Box, Homogeneous => False, Spacing => 4);
       Box.Pack_Start
         (Action_Box, Expand => False, Fill => False, Padding => 0);
