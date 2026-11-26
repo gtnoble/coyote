@@ -1307,6 +1307,53 @@ package body Coyote_App_Frontend_GUI_Tests is
          Size (800, 600);
       end Check_Zoom_Clicks;
 
+      procedure Check_Crop_Pan is
+         Scroll : constant Gtk.Scrolled_Window.Gtk_Scrolled_Window :=
+           Gtk.Scrolled_Window.Gtk_Scrolled_Window
+             (Control ("coyote-canvas-viewport"));
+         X : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Hadjustment;
+         Y : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Vadjustment;
+         PAN_X : constant Glib.Gdouble := 100.0;
+         PAN_Y : constant Glib.Gdouble := 120.0;
+
+         function Crop_Value (Name : String) return String is
+           (Gtk.GEntry.Gtk_Entry
+              (Control ("coyote-canvas-crop-" & Name)).Get_Text);
+      begin
+         Activate ("zoom-in");
+         Activate ("zoom-in");
+         Canvas.Check_Resize;
+         Drain_Events;
+         X.Set_Value (PAN_X);
+         Y.Set_Value (PAN_Y);
+         Activate ("crop");
+         Canvas.Check_Resize;
+         Drain_Events;
+         Assert (Canvas.Get_Focus = Control ("coyote-canvas-crop-x"),
+                 "The Edit menu initially focuses the crop X field");
+         Assert (X.Get_Value = PAN_X and then Y.Get_Value = PAN_Y,
+                 "Selecting Crop preserves the panned view");
+
+         Pointer (Gdk.Event.Button_Press, X.Get_Value + 50.0,
+                  Y.Get_Value + 55.0);
+         Assert (Canvas.Get_Focus = Area, "Crop drag focuses the drawing");
+         Assert (X.Get_Value = PAN_X and then Y.Get_Value = PAN_Y,
+                 "Focusing the drawing must not reset pan on crop press");
+         Pointer (Gdk.Event.Button_Release, X.Get_Value + 150.0,
+                  Y.Get_Value + 180.0);
+         Assert (Crop_Value ("x") = "96" and then Crop_Value ("y") = "112"
+                 and then Crop_Value ("width") = "64"
+                 and then Crop_Value ("height") = "80",
+                 "Crop bounds account for pan and zoom");
+         Press_Escape;
+         Check_Tool ("pencil");
+         Activate ("fit");
+         Canvas.Check_Resize;
+         Drain_Events;
+         Activate ("actual");
+         Size (800, 600);
+      end Check_Crop_Pan;
+
       procedure Check_Stylus_Input is
          use Interfaces.C.Strings;
          use type System.Address;
@@ -1904,6 +1951,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Tool ("pencil");
       Check_Pixel ((13, 13, 13));
       Check_Zoom_Clicks;
+      Check_Crop_Pan;
       Check_Stylus_Input;
       Check_Pixel ((13, 13, 13));
       Check_Fit (Pan_First => True);

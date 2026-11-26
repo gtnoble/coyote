@@ -1859,6 +1859,24 @@ package body Coyote_GUI.Canvas is
       S.Drawing_Area.Set_Halign (Gtk.Widget.Align_Start);
       S.Drawing_Area.Set_Valign (Gtk.Widget.Align_Start);
       S.Viewport.Add (S.Drawing_Area);
+      Disable_Focus_Scrolling : declare
+         --  GtkAda's setters do not accept a null adjustment.
+         procedure Set_Focus_Hadjustment
+           (Container, Adjustment : System.Address)
+           with Import, Convention => C,
+             External_Name => "gtk_container_set_focus_hadjustment";
+         procedure Set_Focus_Vadjustment
+           (Container, Adjustment : System.Address)
+           with Import, Convention => C,
+             External_Name => "gtk_container_set_focus_vadjustment";
+         Inner_Viewport : constant System.Address :=
+           S.Drawing_Area.Get_Parent.Get_Object;
+      begin
+         --  The implicit GtkViewport must keep its pan when the entire
+         --  drawing takes focus. Leave the scrollbar adjustments in place.
+         Set_Focus_Hadjustment (Inner_Viewport, System.Null_Address);
+         Set_Focus_Vadjustment (Inner_Viewport, System.Null_Address);
+      end Disable_Focus_Scrolling;
       Viewport_Callback.Connect
         (S.Viewport, "size-allocate", Apply_Zoom_Anchor'Access, State,
          After => True);
