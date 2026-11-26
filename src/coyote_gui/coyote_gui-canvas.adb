@@ -585,6 +585,7 @@ package body Coyote_GUI.Canvas is
       S.Erase_Preview_Failed := False;
       S.Crop_Drag := False;
       if Cropping (S) then
+         S.Canvas_Window.Set_Default (null);
          S.Tool := S.Previous_Ink_Tool;
       end if;
       S.Crop_Grid.Hide;
@@ -1694,6 +1695,7 @@ package body Coyote_GUI.Canvas is
          Gtk.Label.Gtk_New_With_Mnemonic (Crop_Label, Title);
          Gtk.GEntry.Gtk_New (Control);
          Control.Set_Max_Length (11);
+         Control.Set_Activates_Default (True);
          Control.Set_Name ("coyote-canvas-crop-" & Name);
          Control.Set_Width_Chars (5);
          Crop_Label.Set_Mnemonic_Widget (Control);
@@ -1888,6 +1890,7 @@ package body Coyote_GUI.Canvas is
       Field (S.Width_Field, "_Width:", "width", 4);
       Field (S.Height_Field, "_Height:", "height", 6);
       Gtk.Button.Gtk_New (S.Apply_Crop, "Apply Crop");
+      S.Apply_Crop.Set_Can_Default (True);
       Gtk.Button.Gtk_New (S.Cancel_Crop, "Cancel");
       S.Apply_Crop.Set_Name ("canvas-apply-button");
       Button_Callback.Connect
@@ -2517,7 +2520,6 @@ package body Coyote_GUI.Canvas is
       S.Finger_Sequence := null;
       S.Stroke_Points.Clear;
       S.Crop_Drag   := False;
-      S.Tool := Pencil;
       if S.Pencil_Color /= null then
          S.Pencil_Color.Set_Rgba
            ((Red => 13.0 / 255.0, Green => 13.0 / 255.0,
@@ -2544,6 +2546,7 @@ package body Coyote_GUI.Canvas is
          S.Store.Clear;
          Cancel_Gesture (S);
       end if;
+      S.Tool := Pencil;
       S.Editing_Draft := True;
       S.Edit_With_Finger := False;
       if S.Finger_Item /= null then
@@ -2757,10 +2760,12 @@ package body Coyote_GUI.Canvas is
       if Cropping (S) then
          Set_Crop_Fields (S, Doc.EMPTY_RECTANGLE);
          S.Crop_Grid.Show;
+         S.Apply_Crop.Grab_Default;
          if Focus_Fields then
             S.X_Field.Grab_Focus;
          end if;
-         Set_Status (S, "Drag a crop region or enter exact pixel bounds");
+         Set_Status
+           (S, "Drag or enter crop bounds, then press Enter to apply");
       elsif Abandoned_Crop then
          Set_Status (S, "Pending crop discarded.");
       end if;

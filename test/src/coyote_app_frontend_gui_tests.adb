@@ -1142,6 +1142,78 @@ package body Coyote_App_Frontend_GUI_Tests is
                  "Escape leaves the active zoom tool or pending crop");
       end Press_Escape;
 
+      procedure Press_Crop_Enter
+        (Key : Gdk.Types.Gdk_Key_Type := Gdk.Types.Keysyms.GDK_Return;
+         Applied : Boolean := True)
+      is
+         Seat : constant Gdk.Seat.Gdk_Seat := Gdk.Seat.Gdk_Seat
+           (Canvas.Get_Display.Get_Default_Seat);
+         Apply_Button : constant Gtk.Widget.Gtk_Widget :=
+           Control ("canvas-apply-button");
+         function New_Event (Kind : Gdk.Event.Gdk_Event_Type)
+           return Gdk.Event.Gdk_Event
+           with Import, Convention => C, External_Name => "gdk_event_new";
+         Event : constant Gdk.Event.Gdk_Event := New_Event (Gdk.Event.Key_Press);
+         Raw : Gdk.Event.Gdk_Event_Key
+           with Import, Address => Gdk.Event.To_Address (Event);
+         function Display_Keymap (Display : System.Address)
+           return System.Address
+           with Import, Convention => C,
+             External_Name => "gdk_keymap_get_for_display";
+         function Keymap_Entries
+           (Keymap : System.Address; Keyval : Gdk.Types.Gdk_Key_Type;
+            Keys : out System.Address; Count : out Glib.Gint)
+            return Glib.Gboolean
+           with Import, Convention => C,
+             External_Name => "gdk_keymap_get_entries_for_keyval";
+         procedure Free_Entries (Keys : System.Address)
+           with Import, Convention => C, External_Name => "g_free";
+         type Keymap_Entry is record
+            Keycode : Glib.Guint;
+            Group   : Glib.Gint;
+            Level   : Glib.Gint;
+         end record with Convention => C;
+         Keys : System.Address;
+         Count : Glib.Gint;
+         Handled : Boolean;
+         use type Glib.Gboolean;
+      begin
+         Assert (Keymap_Entries
+                   (Display_Keymap (Canvas.Get_Display.Get_Object),
+                    Key, Keys, Count) /= 0 and then Count > 0,
+                 "Enter is mapped by the display keyboard");
+         Key_Event : declare
+            Mapping : Keymap_Entry with Import, Address => Keys;
+         begin
+            Gdk.Window.Ref (Canvas.Get_Window);
+            Raw := (The_Type => Gdk.Event.Key_Press,
+                    Window => Canvas.Get_Window, Send_Event => 1, Time => 0,
+                    State => 0, Keyval => Key, Length => 0,
+                    String => Gtkada.Types.Null_Ptr,
+                    Hardware_Keycode => Glib.Guint16 (Mapping.Keycode),
+                    Group => Glib.Guint8 (Mapping.Group), Is_Modifier => 0);
+         end Key_Event;
+         Free_Entries (Keys);
+         Gdk.Device.Set_Device (Event, Seat.Get_Keyboard);
+         Handled := Canvas.Event (Event);
+         Gdk.Event.Free (Event);
+         if Applied then
+            Assert (Handled, "Canvas handles Enter to apply a valid crop");
+            Wait_For_Apply : for Attempt in 1 .. 100 loop
+               Drain_Events;
+               exit Wait_For_Apply when not Apply_Button.Is_Visible;
+               delay 0.01;
+            end loop Wait_For_Apply;
+            Assert (not Apply_Button.Is_Visible, "Enter applies the crop");
+            Assert (Canvas.Get_Default_Widget = null,
+                    "Apply Crop stops being the default outside crop mode");
+         else
+            Assert (Apply_Button.Is_Visible and then
+                      not Apply_Button.Is_Sensitive,
+                    "Enter leaves the unfinished or invalid crop pending");
+         end if;
+      end Press_Crop_Enter;
+
       procedure Field (Name, Value : String) is
       begin
          Gtk.GEntry.Gtk_Entry
@@ -1979,6 +2051,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (not Control ("canvas-fit").Get_Sensitive and then
                 not Tool_Button ("zoom-out").Get_Sensitive,
               "No zoom control can interrupt a crop drag");
+      Press_Crop_Enter (Applied => False);
+      Size (800, 600);
       Check_Brush_Controls (Enabled => False);
       Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
       Tool_Button ("zoom-in").Clicked;
@@ -1992,7 +2066,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Tool ("crop");
       Assert (Control ("canvas-apply").Get_Sensitive,
               "Fit preserves the pending crop and Apply eligibility");
-      Activate ("apply");
+      Assert (Canvas.Get_Focus = Area, "Drawing retains crop focus");
+      Press_Crop_Enter;
       Check_Tool ("eraser");
       Activate ("actual");
       Size (60, 80);
@@ -2007,6 +2082,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Field ("height", "20");
       Assert (not Control ("canvas-apply").Get_Sensitive,
               "Negative origin disables Apply");
+      Press_Crop_Enter (Applied => False);
+      Size (60, 80);
       Field ("x", "3");
       Assert (Control ("canvas-apply").Get_Sensitive,
               "Valid fields enable Apply");
@@ -2037,9 +2114,13 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Only the applied crop was checkpointed");
 
       Activate ("crop");
-      Pointer (Gdk.Event.Button_Press, 3.0, 4.0);
-      Pointer (Gdk.Event.Button_Release, 19.0, 24.0);
-      Activate ("apply");
+      Field ("x", "3");
+      Field ("y", "4");
+      Field ("width", "16");
+      Field ("height", "20");
+      Assert (Canvas.Get_Focus = Control ("coyote-canvas-crop-x"),
+              "Crop entry has keyboard focus");
+      Press_Crop_Enter (Gdk.Types.Keysyms.GDK_KP_Enter);
       Size (16, 20);
       Activate ("crop");
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
