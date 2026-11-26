@@ -3,6 +3,19 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-144 — Transcript actions clipped at the right edge
+
+- **Date reported and resolved in development:** 2026-11-26
+- **Category:** Code, Test
+- **Affected baseline:** `d4431aa`, `Conversation_Stack` tool cards.
+- **Cause:** Long error text and unbroken argument values could push the
+  transcript's minimum width beyond a narrow window.
+- **Correction:** Wrap tool argument values and status text at word breaks
+  where possible, falling back to character breaks. Button sizing is unchanged.
+- **Verification:** The 636-pixel GTK regression failed on the original
+  layout and now checks that both Add Response to Canvas and Fork fit.
+  Display-backed AUnit: 1,141/1,141; GTK interactions: 9/9; runner self-test passed.
+
 ## PCR-143 — Session fork exhausts the agent task stack
 
 - **Date reported and resolved:** 2026-11-26

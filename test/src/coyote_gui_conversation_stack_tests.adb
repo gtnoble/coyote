@@ -34,6 +34,7 @@ with Glib;
 with Glib.Object;
 with Ada.Unchecked_Deallocation;
 with AUnit.Assertions;
+with Cairo;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Container;
@@ -580,6 +581,83 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (Fork_Turn = 3 and then Fork_Step = 2,
          "Fork callback receives the turn and step");
    end Test_Native_Footer_Uses_Status_Row_And_Fork_Button;
+
+   procedure Ignore_Response_Capture
+     (Parent : Gtk.Window.Gtk_Window; Binding : Natural;
+      Recording : Cairo.Cairo_Surface; Width, Height : Natural;
+      Error : String)
+   is
+      pragma Unreferenced (Parent, Binding, Recording, Width, Height, Error);
+   begin
+      null;
+   end Ignore_Response_Capture;
+
+   procedure Test_Actions_Fit_Narrow_Transcript (T : in out Test) is
+      Width : constant Glib.Gint := 636;
+      Long_Value : constant String (1 .. 80) := (others => 'W');
+
+      procedure Check_Button (Button : Gtk.Widget.Gtk_Widget) is
+         X, Y, Minimum, Natural_Width : Glib.Gint;
+         Translated : Boolean;
+      begin
+         Assert (Button /= null, "transcript action exists");
+         Button.Translate_Coordinates (T.Parent, 0, 0, X, Y, Translated);
+         Button.Get_Preferred_Width (Minimum, Natural_Width);
+         Assert
+           (Translated and then Button.Get_Mapped and then X >= 0
+            and then Button.Get_Allocated_Width >= Natural_Width
+            and then X + Button.Get_Allocated_Width <= Width,
+            "transcript action fits at" & Width'Image & ": "
+            & Gtk.Button.Gtk_Button (Button).Get_Label);
+      end Check_Button;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      T.Parent.Set_Default_Size (Width, 520);
+      Set_Response_Capture_Handler
+        (T.Stack.all, Ignore_Response_Capture'Access);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Begin_Tool
+        (C          => T.Stack.all,
+         Name       => "shell",
+         Args       => "{""command"":""" & Long_Value & """}",
+         Session_Id => "session",
+         Tool_Id    => "wide-tool");
+      End_Tool (T.Stack.all, "wide-tool", Error, Long_Value);
+      Append_Text (T.Stack.all, "response");
+      declare
+         Section : constant Gtk.Box.Gtk_Box := Gtk.Box.Gtk_Box
+           (Active_Text_View (T.Stack.all).Get_Parent);
+         Children : Gtk.Widget.Widget_List.Glist;
+         Node : Gtk.Widget.Widget_List.Glist;
+         Canvas_Button : Gtk.Widget.Gtk_Widget := null;
+      begin
+         End_Response (T.Stack.all);
+         Append_Turn_Footer (T.Stack.all, "step", Step_Footer);
+         Append_Fork_Action (T.Stack.all, "", "session", 15, 5);
+         T.Parent.Show_All;
+         Drain_Gtk_Events;
+
+         Children := Section.Get_Children;
+         Node := Gtk.Widget.Widget_List.First (Children);
+         Find_Button : while Node /= Gtk.Widget.Widget_List.Null_List loop
+            declare
+               Child : constant Gtk.Widget.Gtk_Widget :=
+                 Gtk.Widget.Widget_List.Get_Data (Node);
+            begin
+               if Child.Get_Name = "coyote-response-add-to-canvas" then
+                  Canvas_Button := Child;
+                  exit Find_Button;
+               end if;
+            end;
+            Node := Gtk.Widget.Widget_List.Next (Node);
+         end loop Find_Button;
+         Gtk.Widget.Widget_List.Free (Children);
+         Check_Button (Canvas_Button);
+         Check_Button (Gtk.Widget.Gtk_Widget (Fork_Button (T.Stack.all)));
+      end;
+   end Test_Actions_Fit_Narrow_Transcript;
 
    procedure Test_Creates_Single_Outer_Host (T : in out Test) is
    begin
@@ -3843,6 +3921,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Footer_Uses_Status_Row_And_Fork_Button'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack keeps actions inside the window",
+            Test_Actions_Fit_Narrow_Transcript'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack clears exchange state",

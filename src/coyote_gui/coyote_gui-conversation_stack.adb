@@ -52,6 +52,7 @@ with Glib.Properties; use Glib.Properties;
 with Gtk.Style_Context;
 with Gtk.Style_Provider;
 with Pango.Font;
+with Pango.Enums;
 
 with LLM.User_Images;
 with Coyote_Image_Decoder;
@@ -1603,6 +1604,7 @@ package body Coyote_GUI.Conversation_Stack is
       Gtk.Label.Gtk_New (Value, Field_Value);
       Value.Set_Xalign (0.0);
       Value.Set_Line_Wrap (True);
+      Value.Set_Line_Wrap_Mode (Pango.Enums.Pango_Wrap_Word_Char);
       Value.Set_Max_Width_Chars (80);
       Value.Set_Selectable (True);
       Grid.Attach (Value, 1, Row);
@@ -1688,6 +1690,9 @@ package body Coyote_GUI.Conversation_Stack is
          "Status: "
          & Tool_Status_Text (Initial_Status, "", Running => False));
       Status.Set_Xalign (0.0);
+      --  Error details must not set the minimum width of the transcript.
+      Status.Set_Line_Wrap (True);
+      Status.Set_Line_Wrap_Mode (Pango.Enums.Pango_Wrap_Word_Char);
       Box.Pack_Start (Status, Expand => False, Fill => False, Padding => 0);
 
       Gtk.Label.Gtk_New

@@ -1,5 +1,16 @@
 # Component Development Log — Frontends
 
+## 2026-11-26 — Keep transcript actions in view (PCR-144)
+
+Long tool argument values and status text now wrap at word boundaries,
+with character wrapping for unbroken strings. This keeps those fields
+from pushing the transcript's right-aligned actions out of view.
+
+The 636-pixel GTK regression failed against the original layout and
+passes with both actions at their natural widths. Both development
+builds passed, as did the display-backed AUnit suite (1,141/1,141), GTK
+interaction checks (9/9), and the GTK runner containment self-test.
+
 ## 2026-11-26 — Preserve large records when forking (PCR-143)
 
 The fork writer now writes the record and LF separately rather than
