@@ -3,6 +3,23 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-145 — Older tool cards open an empty details window
+
+- **Date reported and resolved in development:** 2026-11-26
+- **Category:** Code, Test
+- **Priority:** 3-Moderate (historical tool details become inaccessible).
+- **Affected baseline:** `1eb9f50`, `Conversation_Stack` tool cards.
+- **Cause:** Starting a request cleared the tool-ID lookup used by View
+  Details, but left older cards visible. Missing IDs returned a default
+  queued snapshot; reused IDs could resolve to the newer call instead.
+- **Correction:** Retain one detail payload per card until the transcript is
+  cleared. Keep execution updates scoped to the active request's tool IDs.
+- **Verification:** The GTK regression reproduced the empty inspector before
+  the fix. It now checks the original tool name, status, position, command,
+  and decoded PNG across requests and ID reuse. Saved-session replay retains
+  the older card's image and Add to Canvas action. Display-backed AUnit:
+  1,142/1,142; GTK interactions: 9/9; runner containment self-test passed.
+
 ## PCR-144 — Transcript actions clipped at the right edge
 
 - **Date reported and resolved in development:** 2026-11-26

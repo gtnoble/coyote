@@ -344,9 +344,9 @@ package body Coyote_GUI.Conversation_Stack is
    end Has_Non_Whitespace;
 
    type Detail_Context is record
-      Stack   : Instance_Access;
-      Tool_Id : Unbounded_String;
-      Binding : Natural;
+      Stack        : Instance_Access;
+      Detail_Index : Positive;
+      Binding      : Natural;
    end record;
 
    package Detail_Callback is new Gtk.Handlers.User_Callback
@@ -939,9 +939,11 @@ package body Coyote_GUI.Conversation_Stack is
    is
       pragma Unreferenced (Button);
    begin
-      if Data.Stack /= null and then Data.Stack.Main_Window /= null then
+      if Data.Stack /= null and then Data.Stack.Main_Window /= null
+        and then Data.Detail_Index <= Data.Stack.Tool_Details.Last_Index
+      then
          Coyote_GUI.Tool_Detail_Window.Show
-           (Tool_Detail (Data.Stack.all, To_String (Data.Tool_Id)),
+           (Data.Stack.Tool_Details.Element (Data.Detail_Index),
             Data.Stack.Main_Window.all'Access,
             Data.Stack.Tool_Image_Handler, Data.Binding);
       end if;
@@ -1074,6 +1076,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchanges.Clear;
       C.Step_Frames.Clear;
       C.Tools.Clear;
+      C.Tool_Details.Clear;
       if not C.Math_Elements.Is_Empty then
          for Math_Index in
            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
@@ -1752,13 +1755,6 @@ package body Coyote_GUI.Conversation_Stack is
       Details.Set_Sensitive (True);
       Details.Set_Tooltip_Text
         ("View captured tool call details and current status");
-      Detail_Callback.Connect
-        (Details,
-         Gtk.Button.Signal_Clicked,
-         On_Detail_Clicked'Access,
-        (Stack   => C'Unchecked_Access,
-         Tool_Id => To_Unbounded_String (Tool_Id),
-         Binding => C.Canvas_Image_Binding));
       Gtk.Box.Gtk_New_Hbox (Action_Box, Homogeneous => False, Spacing => 4);
       Box.Pack_Start
         (Action_Box, Expand => False, Fill => False, Padding => 0);
@@ -1800,8 +1796,14 @@ package body Coyote_GUI.Conversation_Stack is
          Tool_Id => To_Unbounded_String (Tool_Id)));
       Action_Box.Pack_Start
         (Abort_Message_Button, Expand => False, Fill => False, Padding => 0);
-      C.Tool_Flow.Insert (Frame, -1);
-      Show_Contents (C);
+      C.Tool_Details.Append (Info);
+      Detail_Callback.Connect
+        (Details,
+         Gtk.Button.Signal_Clicked,
+         On_Detail_Clicked'Access,
+         (Stack        => C'Unchecked_Access,
+          Detail_Index => C.Tool_Details.Last_Index,
+          Binding      => C.Canvas_Image_Binding));
       C.Tools.Insert
         (Tool_Id,
         (Summary_Text          => To_Unbounded_String (Summary_Text),
@@ -1819,7 +1821,9 @@ package body Coyote_GUI.Conversation_Stack is
           Action_Box           => Action_Box,
           Card_Box             => Box,
           Thumbnail            => null,
-          Info                 => Info));
+          Detail_Index         => C.Tool_Details.Last_Index));
+      C.Tool_Flow.Insert (Frame, -1);
+      Show_Contents (C);
       if Initial_Status = Coyote_GUI.Running then
          Elapsed.Set_Text ("Elapsed: 00:00");
          Start_Tool_Timer (C);
@@ -1833,12 +1837,14 @@ package body Coyote_GUI.Conversation_Stack is
       At_Time : Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
       Tool_Value : Tool_Entry;
+      Info       : Coyote_GUI.Tool_Info;
    begin
       if not C.Tools.Contains (Tool_Id) then
          return;
       end if;
       Tool_Value := C.Tools.Element (Tool_Id);
-      if Tool_Value.Result_Received or else Tool_Value.Info.Completed then
+      Info := C.Tool_Details.Element (Tool_Value.Detail_Index);
+      if Tool_Value.Result_Received or else Info.Completed then
          return;
       end if;
       if Status = Coyote_GUI.Running
@@ -1863,26 +1869,27 @@ package body Coyote_GUI.Conversation_Stack is
             Tool_Value.Elapsed.Hide;
          end if;
       end if;
-      Tool_Value.Info.Result_Status := Status;
-      Tool_Value.Info.Completed     :=
+      Info.Result_Status := Status;
+      Info.Completed     :=
         Status in Coyote_GUI.Success .. Coyote_GUI.Cancelled;
       Tool_Value.Summary_Text       :=
         To_Unbounded_String
           (Format_Tool_Summary
-             (To_String (Tool_Value.Info.Name),
-              To_String (Tool_Value.Info.Args),
+             (To_String (Info.Name),
+              To_String (Info.Args),
               Status,
-              To_String (Tool_Value.Info.Result_Text),
+              To_String (Info.Result_Text),
               Running => Status = Coyote_GUI.Running));
       Tool_Value.Status.Set_Text
         ("Status: "
          & Tool_Status_Text
-           (Status, To_String (Tool_Value.Info.Result_Text),
+           (Status, To_String (Info.Result_Text),
             Running => Status = Coyote_GUI.Running));
       Tool_Value.Abort_Button.Set_Sensitive
         (Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
       Tool_Value.Abort_Message_Button.Set_Sensitive
         (Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
+      C.Tool_Details.Replace_Element (Tool_Value.Detail_Index, Info);
       C.Tools.Replace (Tool_Id, Tool_Value);
       Stop_Timer_If_Idle (C);
    end Set_Tool_Status;
@@ -1896,14 +1903,16 @@ package body Coyote_GUI.Conversation_Stack is
       At_Time    :        Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
       Tool_Value : Tool_Entry;
+      Info       : Coyote_GUI.Tool_Info;
    begin
       if not C.Tools.Contains (Tool_Id) then
          return;
       end if;
-      Tool_Value                    := C.Tools.Element (Tool_Id);
+      Tool_Value := C.Tools.Element (Tool_Id);
       if Tool_Value.Result_Received then
          return;
       end if;
+      Info := C.Tool_Details.Element (Tool_Value.Detail_Index);
       if Tool_Value.Started_At /= Ada.Real_Time.Time_First then
          if Tool_Value.Ended_At = Ada.Real_Time.Time_First then
             Tool_Value.Ended_At :=
@@ -1916,17 +1925,15 @@ package body Coyote_GUI.Conversation_Stack is
          Tool_Value.Elapsed.Hide;
       end if;
       Tool_Value.Result_Received := True;
-      Tool_Value.Info.Result_Text   := To_Unbounded_String (Result);
-      Tool_Value.Info.Media_Type    := To_Unbounded_String (Media_Type);
-      Tool_Value.Info.Result_Status :=
-        Coyote_GUI.Tool_End_Status'Val
-          (Coyote_GUI.Tool_End_Status'Pos (Status));
-      Tool_Value.Info.Completed     := True;
+      Info.Result_Text   := To_Unbounded_String (Result);
+      Info.Media_Type    := To_Unbounded_String (Media_Type);
+      Info.Result_Status := Status;
+      Info.Completed     := True;
       Tool_Value.Summary_Text       :=
         To_Unbounded_String
           (Format_Tool_Summary
-             (To_String (Tool_Value.Info.Name),
-              To_String (Tool_Value.Info.Args),
+             (To_String (Info.Name),
+              To_String (Info.Args),
               Status,
               (if Media_Type'Length > 0 then "" else Result),
               Running => False));
@@ -1944,6 +1951,7 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Abort_Button.Set_Sensitive (False);
       Tool_Value.Abort_Message_Button.Set_Sensitive (False);
       Tool_Value.Details.Set_Sensitive (True);
+      C.Tool_Details.Replace_Element (Tool_Value.Detail_Index, Info);
       C.Tools.Replace (Tool_Id, Tool_Value);
       Stop_Timer_If_Idle (C);
    end End_Tool;
@@ -2164,7 +2172,9 @@ package body Coyote_GUI.Conversation_Stack is
             Found   : Boolean := False;
          begin
             for Cursor in C.Tools.Iterate loop
-               if not Tool_Maps.Element (Cursor).Info.Completed then
+               if not C.Tool_Details
+                 (Tool_Maps.Element (Cursor).Detail_Index).Completed
+               then
                   Tool_Id :=
                     To_Unbounded_String (Tool_Maps.Key (Cursor));
                   Found := True;
@@ -2243,11 +2253,10 @@ package body Coyote_GUI.Conversation_Stack is
    function Tool_Detail
      (C : Instance; Tool_Id : String) return Coyote_GUI.Tool_Info
    is
-      Tool_Value : Tool_Entry;
    begin
       if C.Tools.Contains (Tool_Id) then
-         Tool_Value := C.Tools.Element (Tool_Id);
-         return Tool_Value.Info;
+         return C.Tool_Details.Element
+           (C.Tools.Element (Tool_Id).Detail_Index);
       end if;
       return (others => <>);
    end Tool_Detail;

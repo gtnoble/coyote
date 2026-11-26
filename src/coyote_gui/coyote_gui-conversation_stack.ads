@@ -160,7 +160,7 @@ package Coyote_GUI.Conversation_Stack is
    --  Return the compact summary rendered for Tool_Id.
    function Tool_Summary (C : Instance; Tool_Id : String) return String;
 
-   --  Return the complete detail payload retained for Tool_Id.
+   --  Return the complete detail payload for Tool_Id in the active request.
    function Tool_Detail
      (C : Instance; Tool_Id : String) return Coyote_GUI.Tool_Info;
 
@@ -218,8 +218,11 @@ private
       Action_Box           : Gtk.Box.Gtk_Box;
       Card_Box             : Gtk.Box.Gtk_Box;
       Thumbnail            : Gtk.Image.Gtk_Image;
-      Info                 : Coyote_GUI.Tool_Info;
+      Detail_Index         : Positive;
    end record;
+
+   package Tool_Detail_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Coyote_GUI.Tool_Info);
 
    package Tool_Maps is new Ada.Containers.Indefinite_Hashed_Maps
      (Key_Type        => String,
@@ -303,7 +306,10 @@ private
       Math_Scale          : Long_Float                   := 1.0;
       Thinking            : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View       : Gtk.Text_View.Gtk_Text_View;
+      --  Events resolve tool IDs within the active request. The details
+      --  vector is indexed by card and lasts as long as the transcript.
       Tools               : Tool_Maps.Map;
+      Tool_Details        : Tool_Detail_Vectors.Vector;
       Timer_Id            : Glib.Main.G_Source_Id := 0;
       Tool_Action_Handler : Coyote_GUI.Tool_Action_Handler;
       Tool_Image_Handler  : Tool_Detail_Window.Image_Handler;

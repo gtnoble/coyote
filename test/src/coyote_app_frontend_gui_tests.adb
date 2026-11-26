@@ -2659,6 +2659,97 @@ package body Coyote_App_Frontend_GUI_Tests is
          raise;
    end Test_Canvas_Response_Import;
 
+   procedure Test_Tool_Details_Across_Requests (T : in out Test) is
+      use Ada.Strings.Fixed;
+      use Coyote_App.Frontend;
+      use Coyote_App.Frontend.GUI.Testing;
+      PNG : constant String :=
+        "iVBORw0KGgoAAAANSUhEUgAAAYAAAAANCAYAAACgnrkNAAAAbUlEQVR4nO3O"
+        & "sQ3AQBAEoeu/6XcZs5IJyLl39+CvBgrQ6QfQGShApx9AZ6AAnX4AnYEC"
+        & "dPoBdAYK0OkH0BkoQKcfQGegAJ1+AJ2BAnT6AXQGCtDpB9AZKECnH0Bn"
+        & "oACdfgCdgQJ0+gF0BgqQ+QA8zNs794TAkQAAAABJRU5ErkJggg==";
+      F         : Coyote_App.Frontend.GUI.Instance;
+      Win       : Gtk.Window.Gtk_Window;
+      Details   : Gtk.Widget.Gtk_Widget;
+      Inspector : Gtk.Window.Gtk_Window;
+      Preview   : Gtk.Widget.Gtk_Widget;
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+        (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Inspector), Name));
+
+      function Label_Text (Name : String) return String is
+        (Gtk.Label.Gtk_Label (Control (Name)).Get_Text);
+
+      procedure Open_Details is
+      begin
+         Details := Find_Canvas_Widget
+           (Gtk.Widget.Gtk_Widget (Win), "coyote-tool-details");
+         Assert (Details /= null, "Earlier card still offers View Details");
+         Gtk.Button.Gtk_Button (Details).Clicked;
+         Inspector := Canvas_Toplevel ("tool-detail-window");
+         Assert (Inspector /= null, "View Details opens the inspector");
+      end Open_Details;
+
+      procedure Check_Image_Details is
+         Args        : Gtk.Text_Buffer.Gtk_Text_Buffer;
+         First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
+      begin
+         Assert (Label_Text ("tool-detail-Tool") = "shell",
+                 "Inspector identifies the earlier shell call");
+         Assert (Index (Label_Text ("tool-detail-Status"), "success") > 0,
+                 "Inspector shows the tool completed successfully");
+         Assert (Label_Text ("tool-detail-Position") = "Turn  24, call  2",
+                 "Inspector preserves the original call position");
+         Args := Gtk.Text_View.Gtk_Text_View
+           (Control ("tool-detail-arguments")).Get_Buffer;
+         Args.Get_Bounds (First, Last);
+         Assert (Index (Args.Get_Text (First, Last), "cat fixture.png") > 0,
+                 "Inspector shows the original command argument");
+         Preview := Control ("tool-detail-result-image");
+         Assert (Preview /= null,
+                 "Inspector renders the completed PNG result");
+      end Check_Image_Details;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      F.Create ("Tool details history test", Pop_Under => True);
+      Win := Main_Window (F);
+      F.Begin_Request ("Show the image");
+      F.Begin_Tool
+        (Name => "shell", Args_Json => "{""command"":""cat fixture.png""}",
+         Session_Id => "tool-details-test", Tool_Id => "reused-id",
+         Turn_Index => 24, Call_In_Turn => 2);
+      F.End_Tool ("reused-id", Success, PNG, "image/png");
+      F.Complete_Request (Completed);
+      F.Begin_Request ("Follow up");
+      Drain_Events;
+      Open_Details;
+      Check_Image_Details;
+      Inspector.Destroy;
+
+      F.Begin_Tool ("read", "{}", "tool-details-test", "reused-id");
+      F.End_Tool ("reused-id", Success, "new result");
+      Drain_Events;
+      Assert
+        (Ada.Strings.Unbounded.To_String
+           (Tool_Detail (F, "reused-id").Result_Text) = "new result",
+         "Completion by reused ID updates the current request only");
+      Open_Details;
+      Check_Image_Details;
+      Inspector.Destroy;
+
+      F.Request_Shutdown;
+      Win.Destroy;
+   exception
+      when others =>
+         if Win /= null then
+            F.Request_Shutdown;
+            Win.Destroy;
+         end if;
+         raise;
+   end Test_Tool_Details_Across_Requests;
+
    procedure Test_Canvas_Tool_Image (T : in out Test) is
       use Ada.Real_Time;
       use Ada.Strings.Unbounded;
@@ -2793,6 +2884,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Session_Fixture.Append_Tool_Result
         (To_String (Root), Slug, To_String (A), "saved-image", PNG,
          Media_Type => "image/png");
+      Session_Fixture.Append_User_Message
+        (To_String (Root), Slug, To_String (A), "Follow up on the image");
       F.Create ("Canvas tool result test", Pop_Under => True,
                 Canvas_Waits_For_Session => True);
       declare
@@ -4967,6 +5060,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas whole response import",
             Test_Canvas_Response_Import'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI tool details across requests",
+            Test_Tool_Details_Across_Requests'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas tool image import", Test_Canvas_Tool_Image'Access));

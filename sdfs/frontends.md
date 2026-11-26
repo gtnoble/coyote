@@ -1,5 +1,18 @@
 # Component Development Log — Frontends
 
+## 2026-11-26 — Preserve older tool call details (PCR-145)
+
+Each View Details button now opens its own card's arguments, status, and
+result. Card payloads live until transcript clear; request-local tool IDs
+still route status and result updates. Saved history uses the same path.
+
+The GTK click regression failed on the original code and passes after a
+follow-up request and tool ID reuse. The saved-session image import test
+now opens the older card in a multi-request transcript. Both development
+builds passed, along with display-backed AUnit (1,142/1,142), GTK interaction
+checks (9/9), and the runner containment self-test. This is developer
+verification, not independent acceptance.
+
 ## 2026-11-26 — Keep transcript actions in view (PCR-144)
 
 Long tool argument values and status text now wrap at word boundaries,
